@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>USSALMC — Report a Trade Route</title>
+  <style>
+    :root { --bg:#0f1216; --panel:#181d24; --line:#2a323c; --txt:#e5e9ef; --muted:#8b97a6; --accent:#4c9ffe; --good:#3fb950; --warn:#d29922; --bad:#f85149; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif; }
+    header { padding:14px 20px; border-bottom:1px solid var(--line); }
+    header h1 { font-size:16px; margin:0; }
+    main { max-width:640px; margin:0 auto; padding:20px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px; margin-bottom:16px; }
+    label { display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; text-transform:uppercase; letter-spacing:.04em; }
+    input { width:100%; background:#0c0f13; border:1px solid var(--line); color:var(--txt); padding:9px 11px; border-radius:6px; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    button.primary { background:var(--accent); border:none; color:#04121f; font-weight:600; padding:10px 18px; border-radius:6px; cursor:pointer; margin-top:14px; }
+    .out { white-space:pre-wrap; font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#0c0f13; border:1px solid var(--line); padding:12px; border-radius:6px; }
+    .badge { display:inline-block; padding:1px 8px; border-radius:20px; font-size:12px; border:1px solid var(--line); }
+    .good{color:var(--good);border-color:var(--good);} .warn{color:var(--warn);border-color:var(--warn);} .bad{color:var(--bad);border-color:var(--bad);} .acc{color:var(--accent);border-color:var(--accent);}
+    .muted { color:var(--muted); font-size:12px; }
+    code { background:#0c0f13; padding:2px 5px; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <header><h1>USSALMC · Report a Trade Route</h1></header>
+  <main>
+    <div class="panel">
+      <div class="grid2">
+        <div><label>Commodity</label><input id="commodity" value="Laranite" /></div>
+        <div><label>Your handle (account)</label><input id="account" value="pilot_alice" /></div>
+        <div><label>Origin location</label><input id="origin" value="Area18" /></div>
+        <div><label>Destination location</label><input id="destination" value="Port Tressler" /></div>
+        <div><label>Buy price (per unit)</label><input id="buy" type="number" value="2650" /></div>
+        <div><label>Sell price (per unit)</label><input id="sell" type="number" value="3120" /></div>
+      </div>
+      <button class="primary" onclick="submitForm()">Submit trade route</button>
+      <div class="muted" style="margin-top:8px">New reports default to <b>community</b> confidence. Independent matching reports auto-corroborate and step confidence up.</div>
+    </div>
+
+    <div class="panel">
+      <div class="muted">Equivalent bot command (the future Discord/Twitch bot will send this verbatim):</div>
+      <div class="out" id="cmdPreview"></div>
+      <button class="primary" onclick="sendCommand()">Send as bot command</button>
+    </div>
+
+    <div class="panel">
+      <div class="muted">Result</div>
+      <div class="out" id="result">—</div>
+    </div>
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    function vals() {
+      return { commodity: $('commodity').value, origin: $('origin').value, destination: $('destination').value,
+               buy: $('buy').value, sell: $('sell').value, account: $('account').value };
+    }
+    function quote(s){ return /\s/.test(s) ? '"'+s+'"' : s; }
+    function refreshPreview() {
+      const v = vals();
+      $('cmdPreview').textContent = `!trade submit ${quote(v.commodity)} ${quote(v.origin)} ${quote(v.destination)} ${v.buy} ${v.sell}`;
+    }
+    ['commodity','origin','destination','buy','sell'].forEach(id => $(id).addEventListener('input', refreshPreview));
+    refreshPreview();
+
+    async function submitForm() {
+      const v = vals();
+      const r = await fetch('/submit', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(v) });
+      $('result').textContent = JSON.stringify(await r.json(), null, 2);
+    }
+    async function sendCommand() {
+      const v = vals();
+      const text = `!trade submit ${quote(v.commodity)} ${quote(v.origin)} ${quote(v.destination)} ${v.buy} ${v.sell}`;
+      const r = await fetch('/command', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, account: v.account }) });
+      $('result').textContent = JSON.stringify(await r.json(), null, 2);
+    }
+  </script>
+</body>
+</html>

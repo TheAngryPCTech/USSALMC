@@ -1,0 +1,483 @@
+/*
+Theme Name: USSALMC Theme
+Theme URI: https://ussa.space
+Author: USSALMC
+Author URI: https://ussa.space
+Description: HUD / corporate-portal visual identity for the USSA Lore Master Core (United Space Securities Association). MobiGlas-style diegetic chrome + automotive/tech brand polish. Elementor-compatible: ships an Elementor Global Colors/Typography Kit matching the design tokens so theme-inheriting plugin widgets pick up the palette automatically. Structural language (clipped hex corners, corner-bracket focus, hex-grid + scanline background, hairline borders) lives in this stylesheet. Visual source of truth: reference/corp-portal.html.
+Version: 0.2.0
+Requires at least: 6.0
+Requires PHP: 8.0
+License: MIT
+Text Domain: ussalmc-theme
+*/
+
+/* ============================================================================
+   DESIGN TOKENS — exact values, mirrored into the Elementor Kit (inc/elementor-kit.php)
+   so Elementor Global Colors and these CSS custom properties never drift.
+   ========================================================================== */
+:root{
+  --void:#0A0E14;
+  --panel:#111820;
+  --panel-raised:#151E28;
+  --line:#28333F;
+  --line-bright:#3A4757;
+  --signal:#4A9EFF;
+  --signal-dim:#1C69D4;
+  --amber:#E8A33D;
+  --text:#E6EAEF;
+  --text-dim:#8A97A6;
+  --text-faint:#4E5966;
+  --green:#4FD1A5;
+  --red:#E86B5A;
+  /* Brand gradient — pilot chip, logo lockup, brand accents (never a flat fill). */
+  --brand-gradient: linear-gradient(135deg, var(--signal-dim), var(--signal));
+  /* Shared clip-path corner treatments (angular, never border-radius). */
+  --clip-panel: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  --clip-chip: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+  --clip-rail: polygon(14% 0, 100% 0, 100% 86%, 86% 100%, 0 100%, 0 14%);
+  --clip-btn: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+/* AQUIRE is a licensed commercial display face (Yellow Design Studio); it is not
+   on any free font CDN. Drop the licensed file(s) into assets/fonts/ and every
+   headline/wordmark/data-label element inherits it automatically; until then the
+   stack falls back to Rajdhani (loaded from Google Fonts in functions.php). */
+@font-face{
+  font-family:'Aquire';
+  src: url('assets/fonts/Aquire-Regular.woff2') format('woff2'),
+       url('assets/fonts/Aquire-Regular.otf') format('opentype');
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+*{box-sizing:border-box;}
+
+html,body{
+  background:var(--void);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+  margin:0;
+  padding:0;
+}
+
+a{ color:var(--signal); text-decoration:none; }
+a:hover{ text-decoration:underline; }
+
+/* ---------- AMBIENT TEXTURE: hex-grid + scanline overlay ---------- */
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 42px 42px;
+  opacity:0.06;
+  pointer-events:none;
+  z-index:0;
+}
+body::after{
+  content:"";
+  position:fixed; inset:0;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.015) 0px,
+    rgba(255,255,255,0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events:none;
+  z-index:1;
+  mix-blend-mode:overlay;
+}
+
+/* Utility headings/labels/mono */
+.u-head{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; letter-spacing:0.4px; }
+.u-mono{ font-family:'Space Mono',monospace; }
+
+/* ============================================================================
+   APP SHELL — left rail + main column (header.php / footer.php)
+   ========================================================================== */
+.app{ position:relative; z-index:2; display:flex; min-height:100vh; }
+
+/* ---------- LEFT RAIL ----------
+   GENUINELY FIXED: position:fixed pins the rail to the viewport regardless of
+   scroll. (position:sticky is defeated here because html/body set
+   overflow-x:hidden, which turns the body into a scroll container and makes a
+   sticky descendant scroll away — the reason the rail was only "partially"
+   fixed before.) The main column is offset by the rail width below. */
+.rail{
+  width:76px; flex-shrink:0;
+  background:var(--panel);
+  border-right:1px solid var(--line);
+  display:flex; flex-direction:column; align-items:center;
+  padding:20px 0;
+  position:fixed; top:0; left:0; height:100vh; z-index:40;
+}
+.rail-mark{
+  width:44px; height:44px;
+  display:flex; align-items:center; justify-content:center;
+  filter: drop-shadow(0 0 8px rgba(74,158,255,0.45));
+}
+.rail-mark img{ width:100%; height:100%; object-fit:contain; }
+.rail-nav{ margin-top:44px; display:flex; flex-direction:column; gap:6px; width:100%; align-items:center; }
+.rail-item{
+  width:52px; height:52px;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-faint);
+  cursor:pointer; position:relative;
+  clip-path: var(--clip-rail);
+  transition: color .15s ease, background .15s ease;
+}
+.rail-item:hover{ color:var(--text-dim); background:rgba(255,255,255,0.03); }
+.rail-item.active{ color:var(--signal); background:rgba(74,158,255,0.08); }
+.rail-item.active::before{
+  content:""; position:absolute; left:0; top:14px; bottom:14px; width:2px;
+  background:var(--signal); box-shadow:0 0 8px var(--signal);
+}
+/* corner-bracket focus state (keyboard accessibility, matches HUD language) */
+.rail-item:focus-visible{ outline:none; color:var(--signal); }
+.rail-item:focus-visible::after{
+  content:""; position:absolute; inset:6px; pointer-events:none;
+  border:1px solid var(--signal);
+  clip-path: polygon(0 0, 30% 0, 30% 6%, 6% 6%, 6% 30%, 0 30%, 0 0,
+                     70% 100%, 100% 100%, 100% 70%, 94% 70%, 94% 94%, 70% 94%, 70% 100%);
+}
+.rail-item svg{ width:20px; height:20px; }
+.rail-foot{ margin-top:auto; color:var(--text-faint); display:flex; flex-direction:column; align-items:center; gap:14px; }
+.rail-foot .dot{ width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); }
+
+/* ---------- MAIN ----------
+   Offset by the fixed rail (margin-left) and the fixed topbar (padding-top).
+   min-height:100vh + flex column so the content area fills the viewport even on
+   short pages (task: content always fills available height). */
+.main{ flex:1; display:flex; flex-direction:column; min-width:0; margin-left:76px; padding-top:64px; min-height:100vh; }
+
+/* ---------- TOP STATUS BAR ----------
+   GENUINELY FIXED across the top of the main column (right of the rail). */
+.topbar{
+  height:64px; flex-shrink:0;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg, var(--panel), rgba(17,24,32,0.92));
+  backdrop-filter:blur(6px);
+  display:flex; align-items:center; padding:0 28px; gap:28px;
+  position:fixed; top:0; left:76px; right:0; z-index:50;
+}
+.brand{ display:flex; align-items:center; gap:10px; white-space:nowrap; }
+.brand-mark{ width:26px; height:26px; filter: drop-shadow(0 0 6px rgba(74,158,255,0.4)); flex-shrink:0; }
+.brand-mark img{ width:100%; height:100%; object-fit:contain; }
+.brand-text{
+  font-family:'Aquire','Rajdhani',sans-serif; font-weight:700; font-size:20px; letter-spacing:0.5px;
+  display:flex; align-items:baseline; gap:8px;
+}
+.brand-text span{ color:var(--signal); font-size:12px; font-weight:600; letter-spacing:1px; align-self:center; }
+.brand-text small{ font-family:'Space Mono',monospace; font-size:10px; color:var(--text-faint); font-weight:400; letter-spacing:1px; }
+.topbar-div{ width:1px; height:26px; background:var(--line); }
+.breadcrumb{ font-family:'Space Mono',monospace; font-size:12px; color:var(--text-dim); display:flex; gap:8px; align-items:center; }
+.breadcrumb b{ color:var(--text); font-weight:400; }
+/* top status bar navigation (Knowledge Base link + any WP-Admin menu items) */
+.topbar-nav{ display:flex; align-items:center; }
+.topbar-menu{ list-style:none; display:flex; align-items:center; gap:6px; margin:0; padding:0; }
+.topbar-menu li{ margin:0; }
+.topbar-menu a{
+  display:inline-block; padding:7px 14px; font-size:11.5px; letter-spacing:1px;
+  font-family:'Aquire','Rajdhani',sans-serif; text-transform:uppercase;
+  color:var(--text-dim); border:1px solid var(--line-bright); background:var(--panel-raised);
+  clip-path: var(--clip-btn);
+}
+.topbar-menu a:hover, .topbar-menu .current-menu-item a{
+  border-color:var(--signal); color:var(--signal); text-decoration:none;
+}
+.topbar-right{ margin-left:auto; display:flex; align-items:center; gap:22px; }
+.stat-chip{ display:flex; flex-direction:column; align-items:flex-end; line-height:1.2; }
+.stat-chip .label{ font-size:10px; color:var(--text-faint); letter-spacing:1.5px; font-family:'Inter',sans-serif; }
+.stat-chip .value{ font-family:'Space Mono',monospace; font-size:14px; color:var(--text); }
+.stat-chip .value.amber{ color:var(--amber); }
+.pilot-tag{
+  display:flex; align-items:center; gap:10px; padding:6px 14px 6px 6px;
+  border:1px solid var(--line-bright); clip-path: var(--clip-chip);
+}
+.pilot-avatar{ width:30px; height:30px; background:var(--brand-gradient); clip-path: polygon(20% 0, 100% 0, 100% 80%, 80% 100%, 0 100%, 0 20%); }
+.pilot-tag .name{ font-size:12.5px; font-weight:600; }
+.pilot-tag .rank{ font-size:10px; color:var(--text-faint); font-family:'Space Mono',monospace; }
+
+/* ---------- CONTENT WRAPPER ---------- */
+.content{ flex:1; padding:32px 36px 60px; max-width:1400px; width:100%; }
+.page-head{ display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:28px; gap:20px; }
+.page-head h1{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:26px; letter-spacing:0.3px; margin:0; }
+.page-head p{ color:var(--text-dim); font-size:13.5px; margin-top:4px; max-width:46ch; }
+.sync-status{ font-family:'Space Mono',monospace; font-size:11px; color:var(--text-faint); display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.sync-status .dot{ width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); }
+
+/* ============================================================================
+   HERO / INSTRUMENT CLUSTER
+   ========================================================================== */
+.cluster{ display:grid; grid-template-columns: 340px 1fr; gap:1px; background:var(--line); border:1px solid var(--line); margin-bottom:1px; }
+.cluster > div{ background:var(--panel); }
+.dial-panel{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px 20px; position:relative; }
+.dial-panel .corner{ position:absolute; width:14px; height:14px; border-color:var(--signal-dim); opacity:0.7; }
+.corner.tl{ top:10px; left:10px; border-top:1px solid; border-left:1px solid; }
+.corner.br{ bottom:10px; right:10px; border-bottom:1px solid; border-right:1px solid; }
+.dial{ position:relative; width:200px; height:200px; }
+.dial svg{ width:100%; height:100%; transform:rotate(-90deg); }
+.dial-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.dial-center .num{ font-family:'Aquire','Rajdhani',sans-serif; font-size:42px; font-weight:700; color:var(--signal); line-height:1; text-shadow:0 0 18px rgba(74,158,255,0.4); }
+.dial-center .lbl{ font-size:10px; letter-spacing:2px; color:var(--text-faint); margin-top:6px; }
+.dial-caption{ margin-top:18px; text-align:center; }
+.dial-caption .title{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:15px; }
+.dial-caption .sub{ font-size:11.5px; color:var(--text-dim); margin-top:3px; }
+
+.readout-grid{ display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); }
+.readout{ padding:22px 24px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); display:flex; flex-direction:column; justify-content:space-between; }
+.readout:nth-child(3n){ border-right:none; }
+.readout:nth-child(n+4){ border-bottom:none; }
+.readout .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
+.readout .lbl{ font-size:10.5px; color:var(--text-faint); letter-spacing:1.5px; }
+.readout .trend{ font-family:'Space Mono',monospace; font-size:10.5px; }
+.trend.up{ color:var(--green); }
+.trend.down{ color:var(--red); }
+.readout .big{ font-family:'Space Mono',monospace; font-size:26px; margin-top:14px; }
+.readout .unit{ font-size:12px; color:var(--text-dim); margin-left:4px; }
+
+/* ============================================================================
+   MODULE GRID + PANELS (shared by portal widgets, placeholders, wiki views)
+   ========================================================================== */
+.modules{ display:grid; grid-template-columns: 1.3fr 1fr; gap:22px; margin-top:22px; }
+.col{ display:flex; flex-direction:column; gap:22px; }
+
+.panel{ background:var(--panel); border:1px solid var(--line); position:relative; clip-path: var(--clip-panel); }
+.panel-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--line); }
+.panel-head h2{ font-family:'Aquire','Rajdhani',sans-serif; font-size:15px; font-weight:600; letter-spacing:0.4px; margin:0; }
+.panel-head .count{ font-family:'Space Mono',monospace; font-size:11px; color:var(--text-faint); }
+.panel-body{ padding:6px 0; }
+/* Placeholder marker — shown on panels not yet wired to a live API. */
+.panel .placeholder-flag{
+  font-family:'Space Mono',monospace; font-size:9px; letter-spacing:1px;
+  color:var(--amber); border:1px solid rgba(232,163,61,0.4);
+  padding:2px 7px; text-transform:uppercase;
+}
+
+.contract-row{ display:grid; grid-template-columns: 8px 1fr auto auto; align-items:center; gap:16px; padding:14px 20px; border-bottom:1px solid rgba(40,51,63,0.6); transition:background .15s ease; }
+.contract-row:last-child{ border-bottom:none; }
+.contract-row:hover{ background:rgba(255,255,255,0.02); }
+.pri{ width:8px; height:8px; clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); }
+.pri.high{ background:var(--amber); box-shadow:0 0 8px var(--amber); }
+.pri.norm{ background:var(--signal); box-shadow:0 0 8px var(--signal); }
+.pri.low{ background:var(--text-faint); }
+.c-title{ font-size:13.5px; font-weight:500; }
+.c-sub{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+.c-reward{ font-family:'Space Mono',monospace; font-size:13px; text-align:right; }
+.c-reward .aUEC{ color:var(--text-faint); font-size:10px; margin-left:3px; }
+.c-tag{ font-size:9.5px; letter-spacing:1px; padding:4px 8px; border:1px solid var(--line-bright); color:var(--text-dim); white-space:nowrap; }
+
+.ship-row{ display:grid; grid-template-columns:44px 1fr auto; align-items:center; gap:14px; padding:13px 20px; border-bottom:1px solid rgba(40,51,63,0.6); }
+.ship-row:last-child{ border-bottom:none; }
+.ship-icon{
+  width:44px; height:30px; background:var(--panel-raised); border:1px solid var(--line-bright);
+  clip-path:polygon(10% 0,90% 0,100% 50%,90% 100%,10% 100%,0 50%);
+  display:flex; align-items:center; justify-content:center; color:var(--text-faint);
+  font-family:'Space Mono',monospace; font-size:9px;
+}
+.ship-name{ font-size:13px; font-weight:500; }
+.ship-loc{ font-size:11px; color:var(--text-faint); margin-top:2px; }
+.status-pill{ font-size:10px; letter-spacing:1px; padding:4px 9px; }
+.status-pill.online{ color:var(--green); border:1px solid rgba(79,209,165,0.35); }
+.status-pill.transit{ color:var(--signal); border:1px solid rgba(74,158,255,0.35); }
+.status-pill.dock{ color:var(--text-dim); border:1px solid var(--line-bright); }
+
+.market-row{ display:flex; justify-content:space-between; align-items:center; padding:12px 20px; border-bottom:1px solid rgba(40,51,63,0.6); font-size:13px; }
+.market-row:last-child{border-bottom:none;}
+.market-name{ font-weight:500; }
+.market-loc{ color:var(--text-faint); font-size:11px; }
+.market-price{ font-family:'Space Mono',monospace; text-align:right; }
+.market-price.up{ color:var(--green); }
+.market-price.down{ color:var(--red); }
+.market-price.flat{ color:var(--text-dim); }
+
+.comm-row{ padding:14px 20px; border-bottom:1px solid rgba(40,51,63,0.6); }
+.comm-row:last-child{ border-bottom:none; }
+.comm-top{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-faint); margin-bottom:4px; font-family:'Space Mono',monospace;}
+.comm-body{ font-size:13px; color:var(--text); line-height:1.5; }
+.comm-body b{ color:var(--signal); font-weight:600; }
+
+.person-row{ display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:14px; padding:13px 20px; border-bottom:1px solid rgba(40,51,63,0.6); }
+.person-row:last-child{ border-bottom:none; }
+.person-avatar{ width:34px; height:34px; background:var(--brand-gradient); clip-path: polygon(20% 0,100% 0,100% 80%,80% 100%,0 100%,0 20%); }
+.person-name{ font-size:13px; font-weight:500; }
+.person-role{ font-size:11px; color:var(--text-faint); margin-top:2px; font-family:'Space Mono',monospace; }
+
+.btn-line{
+  display:block; width:100%; text-align:center; padding:12px; font-size:11.5px; letter-spacing:1px;
+  color:var(--text-dim); border:none; border-top:1px solid var(--line); background:transparent;
+  cursor:pointer; font-family:'Inter',sans-serif;
+}
+.btn-line:hover{ color:var(--signal); background:rgba(74,158,255,0.04); }
+
+/* Angular action button (brand accent) */
+.btn-hud{
+  display:inline-block; padding:10px 20px; font-size:11.5px; letter-spacing:1px;
+  font-family:'Aquire','Rajdhani',sans-serif; text-transform:uppercase;
+  color:var(--text); background:var(--panel-raised); border:1px solid var(--line-bright);
+  clip-path: var(--clip-btn); cursor:pointer;
+}
+.btn-hud:hover{ border-color:var(--signal); color:var(--signal); text-decoration:none; }
+.btn-hud.primary{ background:var(--brand-gradient); border-color:var(--signal); color:#fff; }
+
+/* ============================================================================
+   WIKI PLUGIN OUTPUT — styled via theme template overrides (ussalmc-wiki/*.php)
+   entity cards, search, category views. No changes to the wiki plugin's code.
+   ========================================================================== */
+.ussalmc-entity{
+  background:var(--panel); border:1px solid var(--line); position:relative;
+  clip-path: var(--clip-panel); padding:22px 24px; margin:18px 0; max-width:820px;
+}
+.ussalmc-entity .corner{ position:absolute; width:14px; height:14px; border-color:var(--signal-dim); opacity:0.7; }
+.ussalmc-entity__breadcrumb{ font-family:'Space Mono',monospace; font-size:11px; color:var(--text-dim); margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap; }
+.ussalmc-entity__breadcrumb b{ color:var(--text); font-weight:400; }
+.ussalmc-entity__name{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:22px; letter-spacing:0.3px; margin:0 0 10px; }
+.ussalmc-entity__summary{ color:var(--text-dim); font-size:13.5px; line-height:1.6; }
+.ussalmc-entity__meta{ list-style:none; padding:0; margin:16px 0 0; display:flex; flex-wrap:wrap; gap:10px; }
+.badge{
+  font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:0.5px;
+  padding:5px 10px; border:1px solid var(--line-bright); color:var(--text-dim);
+  clip-path: var(--clip-chip); display:inline-flex; gap:6px; align-items:center;
+}
+.badge .k{ color:var(--text-faint); }
+.badge.confidence-confirmed{ color:var(--green); border-color:rgba(79,209,165,0.4); }
+.badge.confidence-corroborated{ color:var(--signal); border-color:rgba(74,158,255,0.4); }
+.badge.confidence-community{ color:var(--amber); border-color:rgba(232,163,61,0.4); }
+.badge.confidence-unknown{ color:var(--text-faint); }
+/* entity media (hero + gallery) */
+.ussalmc-entity__media{ margin:16px 0 0; }
+.ussalmc-entity__hero{ display:block; width:100%; max-width:560px; height:auto; border:1px solid var(--line-bright); clip-path: var(--clip-panel); }
+.ussalmc-entity__media figcaption{ font-family:'Space Mono',monospace; font-size:10.5px; color:var(--text-faint); margin-top:6px; }
+.ussalmc-entity__gallery{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.ussalmc-thumb{ display:block; width:84px; height:56px; border:1px solid var(--line); overflow:hidden; clip-path: var(--clip-chip); }
+.ussalmc-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.ussalmc-thumb:hover{ border-color:var(--signal); }
+/* entity specifications grid */
+.ussalmc-stats{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
+.ussalmc-stats__lbl{ font-size:10.5px; letter-spacing:1.5px; color:var(--text-faint); margin-bottom:12px; }
+.ussalmc-stats__grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); margin:0; }
+.ussalmc-stat{ background:var(--panel-raised); padding:8px 12px; display:flex; flex-direction:column; gap:2px; }
+.ussalmc-stat dt{ font-family:'Space Mono',monospace; font-size:9.5px; letter-spacing:0.5px; color:var(--text-faint); }
+.ussalmc-stat dd{ margin:0; font-size:13px; color:var(--text); }
+.ussalmc-xrefs{ margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
+.ussalmc-xrefs .lbl{ font-size:10.5px; letter-spacing:1.5px; color:var(--text-faint); }
+.ussalmc-xref{
+  display:inline-block; margin:8px 8px 0 0; padding:6px 12px; font-size:12px;
+  border:1px solid var(--line-bright); color:var(--text); clip-path: var(--clip-chip);
+}
+.ussalmc-xref:hover{ border-color:var(--signal); color:var(--signal); text-decoration:none; }
+.ussalmc-xref .rel{ color:var(--text-faint); font-family:'Space Mono',monospace; font-size:10px; margin-right:6px; }
+.ussalmc-error{ border-color:var(--red); }
+
+/* wiki search */
+.ussalmc-search{ max-width:820px; }
+.ussalmc-search__form{ display:flex; gap:0; margin-bottom:20px; }
+.ussalmc-search__input{
+  flex:1; background:var(--panel-raised); border:1px solid var(--line-bright); color:var(--text);
+  font-family:'Inter',sans-serif; font-size:14px; padding:12px 16px; clip-path: var(--clip-chip);
+}
+.ussalmc-search__input:focus{ outline:none; border-color:var(--signal); }
+.ussalmc-search__btn{ margin-left:-1px; }
+.ussalmc-result{
+  display:flex; justify-content:space-between; align-items:center; gap:16px;
+  padding:14px 18px; border:1px solid var(--line); border-bottom:none; background:var(--panel);
+}
+.ussalmc-result:last-child{ border-bottom:1px solid var(--line); }
+.ussalmc-result:hover{ background:rgba(255,255,255,0.02); }
+.ussalmc-result__name{ font-size:14px; font-weight:500; }
+.ussalmc-result__sum{ font-size:12px; color:var(--text-faint); margin-top:3px; }
+.ussalmc-result__score{ font-family:'Space Mono',monospace; font-size:11px; color:var(--signal); }
+
+/* wiki category view */
+.ussalmc-cats{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; max-width:1000px; }
+.ussalmc-cat{ background:var(--panel); border:1px solid var(--line); clip-path: var(--clip-panel); padding:18px 20px; }
+.ussalmc-cat h3{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:15px; margin:0 0 6px; }
+.ussalmc-cat .n{ font-family:'Space Mono',monospace; font-size:11px; color:var(--signal); }
+.ussalmc-cat ul{ list-style:none; padding:0; margin:12px 0 0; }
+.ussalmc-cat li{ padding:4px 0; font-size:12.5px; border-bottom:1px solid rgba(40,51,63,0.5); }
+.ussalmc-cat li:last-child{ border-bottom:none; }
+
+/* Default (non-dashboard) page content inside the shell */
+.ussalmc-page article{ max-width:820px; }
+.ussalmc-page h1{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:24px; }
+.ussalmc-content{ font-size:14px; line-height:1.7; color:var(--text-dim); }
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 980px){
+  .cluster{ grid-template-columns:1fr; }
+  .modules{ grid-template-columns:1fr; }
+  .readout-grid{ grid-template-columns:repeat(2,1fr); }
+  .readout:nth-child(3n){ border-right:1px solid var(--line); }
+  .readout:nth-child(2n){ border-right:none; }
+}
+
+/* On narrow viewports a full-height vertical icon rail wastes width, so the
+   rail collapses to a fixed HORIZONTAL top strip (icons in a scrollable row)
+   that sits above a still-sticky status bar. Both stay pinned; page content
+   scrolls beneath them. Desktop (>720px) keeps the genuine fixed side rail. */
+@media (max-width: 720px){
+  .app{ flex-direction:column; }
+  /* rail collapses to a fixed horizontal top strip spanning full width */
+  .rail{
+    position:fixed; top:0; left:0; right:0; z-index:60;
+    width:100%; height:auto; flex-direction:row; align-items:center;
+    padding:8px 10px; gap:10px;
+    border-right:none; border-bottom:1px solid var(--line);
+  }
+  .rail-mark{ width:32px; height:32px; }
+  .rail-nav{
+    margin-top:0; flex-direction:row; gap:4px; width:auto; flex:1;
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+  }
+  .rail-item{ width:44px; height:44px; flex-shrink:0; }
+  .rail-item.active::before{ left:14px; right:14px; top:auto; bottom:0; width:auto; height:2px; }
+  .rail-foot{ margin-top:0; flex-direction:row; gap:10px; }
+  /* status bar stays fixed directly below the collapsed rail strip (~60px) */
+  .topbar{ top:60px; left:0; right:0; height:auto; flex-wrap:wrap; padding:10px 16px; gap:12px; }
+  .breadcrumb{ order:3; flex-basis:100%; }
+  .topbar-nav{ order:4; }
+  .topbar-right{ gap:14px; }
+  /* main no longer sits beside the rail; offset only for the two fixed strips */
+  .main{ margin-left:0; padding-top:150px; }
+  .content{ padding:20px 16px 40px; }
+}
+
+/* ============================================================================
+   IMAGE LIGHTBOX — wiki entity images open inline in an overlay (no new tab).
+   Progressive enhancement: markup uses normal <a href> links; JS intercepts
+   the click and shows the full image in this overlay. Works for hero + gallery.
+   ========================================================================== */
+.ussalmc-lightbox{
+  position:fixed; inset:0; z-index:1000;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(6,9,13,0.9); backdrop-filter:blur(4px);
+  padding:40px; cursor:zoom-out;
+}
+.ussalmc-lightbox.is-open{ display:flex; }
+.ussalmc-lightbox__frame{
+  position:relative; max-width:92vw; max-height:88vh;
+  border:1px solid var(--line-bright); clip-path: var(--clip-panel);
+  background:var(--panel); padding:6px; cursor:default;
+}
+.ussalmc-lightbox__img{
+  display:block; max-width:calc(92vw - 12px); max-height:calc(88vh - 44px);
+  width:auto; height:auto; object-fit:contain;
+}
+.ussalmc-lightbox__cap{
+  font-family:'Space Mono',monospace; font-size:11px; color:var(--text-dim);
+  padding:8px 4px 2px; text-align:center; min-height:14px;
+}
+.ussalmc-lightbox__close{
+  position:absolute; top:-14px; right:-14px; width:34px; height:34px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--panel-raised); border:1px solid var(--line-bright);
+  color:var(--text); font-size:20px; line-height:1; cursor:pointer;
+  clip-path: var(--clip-chip);
+}
+.ussalmc-lightbox__close:hover{ border-color:var(--signal); color:var(--signal); }
+/* clickable entity images signal zoom affordance */
+.ussalmc-entity__hero, .ussalmc-thumb{ cursor:zoom-in; }

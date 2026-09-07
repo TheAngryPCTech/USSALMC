@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>USSALMC Admin — Scraper & Review</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono&display=swap">
+  <style>
+    /* Real USSA design tokens (apps/wordpress-theme/style.css :root) — the
+       admin tool uses the same visual identity as the public wiki/portal,
+       including the login and SSO error screens. */
+    :root {
+      --bg:#0A0E14; --panel:#111820; --panel-raised:#151E28; --line:#28333F; --line-bright:#3A4757;
+      --txt:#E6EAEF; --muted:#8A97A6; --faint:#4E5966;
+      --accent:#4A9EFF; --accent-dim:#1C69D4; --amber:#E8A33D; --good:#4FD1A5; --warn:#E8A33D; --bad:#E86B5A;
+      --clip-panel: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+      --clip-btn: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+      --clip-chip: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 'Inter',system-ui,sans-serif; }
+    h1,h2,h3,.tabs button,.navbtn { font-family:'Rajdhani',sans-serif; letter-spacing:.02em; }
+    header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; background:var(--panel); }
+    header h1 { font-size:18px; margin:0; font-weight:700; text-transform:uppercase; }
+    .tabs { display:flex; gap:6px; margin-left:auto; align-items:center; }
+    .tabs button { background:transparent; border:1px solid var(--line); color:var(--muted); padding:6px 12px; cursor:pointer; clip-path:var(--clip-chip); font-weight:600; }
+    .tabs button.active { color:var(--txt); border-color:var(--accent); }
+    .role-badge { font-family:'Space Mono',monospace; font-size:11px; padding:3px 8px; border:1px solid var(--line-bright); color:var(--amber); clip-path:var(--clip-chip); text-transform:uppercase; }
+    main { padding:20px; max-width:1100px; margin:0 auto; }
+    /* --- app shell: WordPress menu (outside, when SSO-embedded) | USSA nav+queue | editor+preview --- */
+    .app-shell { display:flex; min-height:calc(100vh - 57px); }
+    .app-nav { width:220px; flex:none; border-right:1px solid var(--line); padding:16px 12px; background:var(--panel); }
+    .app-nav .navbtn { display:block; width:100%; text-align:left; background:transparent; border:1px solid transparent; color:var(--muted); padding:8px 10px; margin-bottom:4px; cursor:pointer; font-weight:600; font-size:14px; clip-path:var(--clip-chip); }
+    .app-nav .navbtn.active { color:var(--txt); border-color:var(--accent); background:var(--panel-raised); }
+    .app-nav .navbtn .cnt { float:right; color:var(--amber); font-family:'Space Mono',monospace; font-size:12px; }
+    .app-nav .navhdr { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); margin:16px 0 6px; }
+    .app-main { flex:1; min-width:0; padding:20px; max-width:1500px; }
+    .panel { background:var(--panel); border:1px solid var(--line); clip-path:var(--clip-panel); padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:8px; align-items:center; }
+    input[type=text], input[type=url], input[type=password] { flex:1; background:#0c0f13; border:1px solid var(--line); color:var(--txt); padding:9px 11px; clip-path:var(--clip-chip); }
+    button.primary { background:var(--accent); border:none; color:#04121f; font-weight:700; padding:9px 16px; cursor:pointer; clip-path:var(--clip-btn); font-family:'Rajdhani',sans-serif; letter-spacing:.03em; }
+    button.ghost { background:transparent; border:1px solid var(--line); color:var(--txt); padding:8px 14px; cursor:pointer; clip-path:var(--clip-btn); }
+    button.ghost.active { border-color:var(--accent); color:var(--accent); }
+    button.danger { background:transparent; border:1px solid var(--bad); color:var(--bad); padding:7px 12px; cursor:pointer; clip-path:var(--clip-btn); font-weight:600; }
+    button.confirm-signal { background:transparent; border:1px solid var(--good); color:var(--good); padding:2px 8px; cursor:pointer; clip-path:var(--clip-chip); font-size:12px; }
+    button.flag-signal { background:transparent; border:1px solid var(--bad); color:var(--bad); padding:2px 8px; cursor:pointer; clip-path:var(--clip-chip); font-size:12px; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+    .where { font-size:12px; color:var(--muted); }
+    .badge { display:inline-block; padding:1px 8px; font-size:12px; border:1px solid var(--line); clip-path:var(--clip-chip); font-family:'Space Mono',monospace; }
+    .badge.good{color:var(--good);border-color:var(--good);} .badge.warn{color:var(--warn);border-color:var(--warn);} .badge.bad{color:var(--bad);border-color:var(--bad);} .badge.acc{color:var(--accent);border-color:var(--accent);}
+    .thumb { width:70px; height:44px; object-fit:cover; border:1px solid var(--line); background:#000; }
+    .muted { color:var(--muted); }
+    .fieldname { background:#0c0f13; border:1px solid var(--line); color:var(--txt); padding:4px 6px; width:150px; }
+    select { background:#0c0f13; border:1px solid var(--line); color:var(--txt); padding:4px 6px; }
+    .note { font-size:12px; color:var(--muted); margin-top:6px; }
+    .hint { background:var(--panel-raised); border:1px solid var(--accent-dim); padding:10px 12px; margin-bottom:12px; font-size:13px; }
+    .lic { color:var(--warn); font-size:12px; }
+    pre { background:#0c0f13; border:1px solid var(--line); padding:10px; overflow:auto; font-size:12px; }
+    .stat { display:inline-flex; gap:6px; align-items:center; margin-right:16px; }
+    /* --- split layout: editor/diff left, live wiki preview right --- */
+    main.wide { max-width:1500px; }
+    .split { display:flex; gap:16px; align-items:flex-start; }
+    .split-left { flex:1 1 55%; min-width:0; }
+    .split-right { flex:1 1 45%; min-width:320px; position:sticky; top:16px; }
+    @media (max-width: 980px) { .split { flex-direction:column; } .split-right { position:static; width:100%; } }
+    /* --- live wiki preview card --- */
+    .preview { border-color:var(--accent-dim); }
+    .pcard { background:#0c0f13; border:1px solid var(--line); padding:14px; }
+    .pcard-head { display:flex; gap:12px; align-items:flex-start; }
+    .pname { font-size:18px; font-weight:700; font-family:'Rajdhani',sans-serif; }
+    .pimg { width:120px; height:80px; object-fit:cover; border:1px solid var(--line); background:#000; flex:none; }
+    .pimg-missing { display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:11px; text-align:center; }
+    .psec { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+    .plabel { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:4px; }
+    .ptable td { padding:3px 6px; font-size:13px; border-bottom:1px solid #161b22; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-type="module" src="app.jsx"></script>
+</body>
+</html>

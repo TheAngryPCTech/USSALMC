@@ -1,0 +1,227 @@
+# docker-compose.yml — USSA Lore Master Core.
+# Public/internal split:
+#   db          -> INTERNAL ONLY (no host port; reachable only inside the network)
+#   api         -> PUBLIC  (host 0.0.0.0:8090 -> 3000)
+#   trade-submit-> PUBLIC  (host 0.0.0.0:8092 -> 5000)
+#   admin       -> PUBLIC but LOGIN-GATED (host 0.0.0.0:8091 -> 4000, HTTP Basic auth)
+#   wordpress   -> PRIVATE (host 127.0.0.1:8093 -> 80, plugin/theme test instance)
+#   wordpress-db-> INTERNAL ONLY (MariaDB, no host port)
+#   wordpress-cli-> one-shot WP-CLI bootstrap (installs WP + Elementor, then exits)
+#
+# Bring up:  docker compose up --build -d
+# Secrets/tuning come from .env. Set ADMIN_USER / ADMIN_PASSWORD in .env before
+# starting — the admin container refuses to boot without them.
+#
+# Ports avoid 80/443/3306 (aaPanel). Put a TLS proxy / domains in front of the
+# public ports for real internet use (Basic auth is only safe over HTTPS).
+
+services:
+  # -------------------------------------------------------------------------
+  # PostgreSQL 16 + pgvector. INTERNAL ONLY — no `ports:` mapping, so it is NOT
+  # reachable from the host/internet, only by other services on the network.
+  # -------------------------------------------------------------------------
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: ussalmc-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-ussa}
+      POSTGRES_DB: ${DB_NAME:-ussa_lore}
+      POSTGRES_HOST_AUTH_METHOD: trust      # dev parity; safe because db is not exposed
+    volumes:
+      - ussalmc_pgdata:/var/lib/postgresql/data   # named volume = data persists
+    # NO ports: block on purpose — database stays private to the compose network.
+    networks: [ussalmc]
+    restart: unless-stopped      # survive host reboot alongside the app containers
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ussa} -d ${DB_NAME:-ussa_lore}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # -------------------------------------------------------------------------
+  # Core REST API — PUBLIC. Applies migrations on start, then `npm start`.
+  # -------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ussalmc-api
+    env_file: .env
+    environment:
+      DB_HOST: db                 # reach postgres by service name (internal)
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-ussa}
+      DB_NAME: ${DB_NAME:-ussa_lore}
+      DB_PASSWORD: ""
+      API_HOST: 0.0.0.0           # bind all interfaces inside the container
+      API_PORT: 3000
+      TRUST_PROXY: "true"         # behind nginx: honor X-Forwarded-* (real client IP)
+      SEED_ON_START: ${SEED_ON_START:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Bound to 127.0.0.1 ONLY: nginx (API.USSA.SPACE, TLS) proxies to this.
+      # The port is NOT open to the internet directly — nginx is the front door.
+      - "127.0.0.1:8090:3000"
+    networks: [ussalmc]
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # Trade-route submission app (web form + bot-style command) — PUBLIC.
+  # Talks to the api over the internal network at http://api:3000.
+  # -------------------------------------------------------------------------
+  trade-submit:
+    build:
+      context: .
+      dockerfile: apps/trade-submit/Dockerfile
+    container_name: ussalmc-trade-submit
+    env_file: .env
+    environment:
+      TRADE_SUBMIT_HOST: 0.0.0.0          # bind all interfaces inside the container
+      TRADE_SUBMIT_PORT: 5000
+      TRUST_PROXY: "true"                 # behind nginx: honor X-Forwarded-*
+      TRADE_SUBMIT_API_BASE: http://api:3000   # reach the api by service name
+      TRADE_SUBMIT_API_KEY: ${TRADE_SUBMIT_API_KEY:-wiki-dev-key-0001}
+    depends_on:
+      - api
+    ports:
+      # Bound to 127.0.0.1 ONLY: nginx (Trader.USSA.SPACE, TLS) proxies to this.
+      - "127.0.0.1:8092:5000"
+    networks: [ussalmc]
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # Admin scraper + review UI — PUBLIC but LOGIN-GATED (HTTP Basic auth).
+  # Requires ADMIN_USER + ADMIN_PASSWORD (from .env); refuses to boot without.
+  # -------------------------------------------------------------------------
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: ussalmc-admin
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-ussa}
+      DB_NAME: ${DB_NAME:-ussa_lore}
+      DB_PASSWORD: ""
+      ADMIN_HOST: 0.0.0.0
+      ADMIN_PORT: 4000
+      # live wiki preview fetches the core API in-network as the wiki client
+      ADMIN_API_BASE: http://api:3000
+      TRUST_PROXY: "true"
+      ADMIN_USER: ${ADMIN_USER:?set ADMIN_USER in .env}          # required
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}  # required
+    depends_on:
+      - api
+    ports:
+      # Bound to 127.0.0.1 ONLY (no admin domain yet). Reach it via SSH tunnel:
+      #   ssh -L 8091:127.0.0.1:8091 you@server  ->  http://localhost:8091
+      # Login-gated regardless (ADMIN_USER/ADMIN_PASSWORD). To publish it, add an
+      # admin.ussa.space nginx vhost (copy api.ussa.space.conf) and keep this bind.
+      - "127.0.0.1:8091:4000"
+    networks: [ussalmc]
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # WordPress database — MariaDB. INTERNAL ONLY (no `ports:`), private to the
+  # compose network, separate instance from the app Postgres.
+  # -------------------------------------------------------------------------
+  wordpress-db:
+    image: mariadb:11
+    container_name: ussalmc-wordpress-db
+    environment:
+      MARIADB_DATABASE: ${WORDPRESS_DB_NAME:-wordpress}
+      MARIADB_USER: ${WORDPRESS_DB_USER:-wordpress}
+      MARIADB_PASSWORD: ${WORDPRESS_DB_PASSWORD:?set WORDPRESS_DB_PASSWORD in .env}
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"   # root pw randomized; app uses the user above
+    volumes:
+      - wordpress_db_data:/var/lib/mysql    # named volume = WP database persists
+    # NO ports: block — WordPress DB stays private to the compose network.
+    networks: [ussalmc]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # -------------------------------------------------------------------------
+  # WordPress (Apache + PHP) — PRIVATE (bound to 127.0.0.1:8093, no public
+  # domain; this is the plugin/theme test instance). Plugin + theme dirs are
+  # bind-mounted from disk so code changes are live without rebuilding.
+  # -------------------------------------------------------------------------
+  wordpress:
+    image: wordpress:php8.3-apache
+    container_name: ussalmc-wordpress
+    depends_on:
+      wordpress-db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db:3306
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:?set WORDPRESS_DB_PASSWORD in .env}
+    volumes:
+      - wordpress_data:/var/www/html        # named volume = WP core/uploads persist
+      # Live-mounted USSALMC code (edits on disk reflected without a rebuild):
+      - ./apps/wordpress-plugin:/var/www/html/wp-content/plugins/ussalmc-wiki
+      - ./apps/wordpress-portal-plugin:/var/www/html/wp-content/plugins/ussalmc-portal
+      - ./apps/wordpress-theme:/var/www/html/wp-content/themes/ussalmc-theme
+    ports:
+      # 127.0.0.1 ONLY — private test instance. Reach via SSH tunnel:
+      #   ssh -L 8093:127.0.0.1:8093 angrypctech@192.168.1.29 -> http://localhost:8093
+      - "127.0.0.1:8093:80"
+    networks: [ussalmc]
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # WP-CLI one-shot bootstrap — runs wp-init.sh then exits (restart: "no").
+  # Auto-installs WordPress (site/admin from env), installs+activates Elementor,
+  # activates the USSALMC plugins/theme, and points the wiki plugin at the core
+  # API. Idempotent: safe to re-run; skips install if WordPress is already up.
+  # -------------------------------------------------------------------------
+  wordpress-cli:
+    image: wordpress:cli-php8.3
+    container_name: ussalmc-wordpress-cli
+    user: "0:0"                              # root so it can write the named volume (--allow-root)
+    depends_on:
+      wordpress-db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db:3306
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:?set WORDPRESS_DB_PASSWORD in .env}
+      WORDPRESS_SITE_URL: ${WORDPRESS_SITE_URL:-http://localhost:8093}
+      WORDPRESS_SITE_TITLE: ${WORDPRESS_SITE_TITLE:-USSA Lore Master Core}
+      WORDPRESS_ADMIN_USER: ${WORDPRESS_ADMIN_USER:?set WORDPRESS_ADMIN_USER in .env}
+      WORDPRESS_ADMIN_PASSWORD: ${WORDPRESS_ADMIN_PASSWORD:?set WORDPRESS_ADMIN_PASSWORD in .env}
+      WORDPRESS_ADMIN_EMAIL: ${WORDPRESS_ADMIN_EMAIL:-admin@ussa.space}
+      # wiki plugin -> core API, in-network; key is the wiki client Bearer key.
+      USSALMC_API_BASE: ${USSALMC_API_BASE:-http://api:3000}
+      USSALMC_API_KEY: ${WIKI_API_KEY}
+      # SSO handoff (wp-admin "USSA Admin" menu -> the admin tool): shared HMAC
+      # secret + the BROWSER-reachable admin app URL (not the in-network name).
+      ADMIN_SSO_SECRET: ${ADMIN_SSO_SECRET}
+      ADMIN_APP_PUBLIC_URL: ${ADMIN_APP_PUBLIC_URL:-http://localhost:8091}
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./apps/wordpress-plugin:/var/www/html/wp-content/plugins/ussalmc-wiki
+      - ./apps/wordpress-portal-plugin:/var/www/html/wp-content/plugins/ussalmc-portal
+      - ./apps/wordpress-theme:/var/www/html/wp-content/themes/ussalmc-theme
+      - ./apps/wordpress/wp-init.sh:/wp-init.sh:ro
+    entrypoint: ["sh", "/wp-init.sh"]
+    networks: [ussalmc]
+    restart: "no"
+
+volumes:
+  ussalmc_pgdata:
+  wordpress_data:
+  wordpress_db_data:
+
+networks:
+  ussalmc:
+    driver: bridge

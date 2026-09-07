@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>USSA // United Space Securities Association — Corporate Access</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* AQUIRE is a commercial display face (Yellow Design Studio) — it isn't on a
+     free font CDN, so it can't be linked here. Point this at your own licensed
+     file(s) and every headline/wordmark element below will pick it up automatically;
+     until then everything falls back to Rajdhani, which is a reasonably close stand-in. */
+  @font-face{
+    font-family:'Aquire';
+    src: url('Aquire-Regular.woff2') format('woff2'),
+         url('Aquire-Regular.otf') format('opentype');
+    font-weight: 400 700;
+    font-display: swap;
+  }
+</style>
+<style>
+  :root{
+    --void:#0A0E14;
+    --panel:#111820;
+    --panel-raised:#151E28;
+    --line:#28333F;
+    --line-bright:#3A4757;
+    --signal:#4A9EFF;
+    --signal-dim:#1C69D4;
+    --amber:#E8A33D;
+    --text:#E6EAEF;
+    --text-dim:#8A97A6;
+    --text-faint:#4E5966;
+    --green:#4FD1A5;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  html,body{
+    background:var(--void);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    width:100%;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  /* ambient texture */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 42px 42px;
+    opacity:0.06;
+    pointer-events:none;
+    z-index:0;
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.015) 0px,
+      rgba(255,255,255,0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events:none;
+    z-index:1;
+    mix-blend-mode:overlay;
+  }
+
+  .app{ position:relative; z-index:2; display:flex; min-height:100vh; }
+
+  /* ---------- LEFT RAIL ---------- */
+  .rail{
+    width:76px;
+    flex-shrink:0;
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px 0;
+  }
+  .rail-mark{
+    width:44px; height:44px;
+    display:flex; align-items:center; justify-content:center;
+    filter: drop-shadow(0 0 8px rgba(74,158,255,0.45));
+  }
+  .rail-mark img{ width:100%; height:100%; object-fit:contain; }
+  .rail-nav{
+    margin-top:44px;
+    display:flex; flex-direction:column;
+    gap:6px;
+    width:100%;
+    align-items:center;
+  }
+  .rail-item{
+    width:52px; height:52px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint);
+    cursor:pointer;
+    position:relative;
+    clip-path: polygon(14% 0, 100% 0, 100% 86%, 86% 100%, 0 100%, 0 14%);
+    transition: color .15s ease, background .15s ease;
+  }
+  .rail-item:hover{ color:var(--text-dim); background:rgba(255,255,255,0.03); }
+  .rail-item.active{ color:var(--signal); background:rgba(74,158,255,0.08); }
+  .rail-item.active::before{
+    content:"";
+    position:absolute; left:0; top:14px; bottom:14px; width:2px;
+    background:var(--signal);
+    box-shadow:0 0 8px var(--signal);
+  }
+  .rail-item svg{ width:20px; height:20px; }
+
+  .rail-foot{
+    margin-top:auto;
+    color:var(--text-faint);
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+  }
+  .rail-foot .dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 8px var(--green);
+  }
+
+  /* ---------- MAIN ---------- */
+  .main{ flex:1; display:flex; flex-direction:column; min-width:0; }
+
+  /* top status strip */
+  .topbar{
+    height:64px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--panel), rgba(17,24,32,0.6));
+    display:flex; align-items:center;
+    padding:0 28px;
+    gap:28px;
+  }
+  .brand{
+    font-family:'Aquire','Rajdhani',sans-serif;
+    font-weight:700;
+    font-size:20px;
+    letter-spacing:0.5px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    white-space:nowrap;
+  }
+  .brand-mark{
+    width:26px; height:26px;
+    filter: drop-shadow(0 0 6px rgba(74,158,255,0.4));
+    flex-shrink:0;
+  }
+  .brand-mark img{ width:100%; height:100%; object-fit:contain; }
+  .brand-text{ display:flex; align-items:baseline; gap:8px; }
+  .brand span{ color:var(--signal); font-size:12px; font-weight:600; letter-spacing:1px; align-self:center; }
+  .brand small{
+    font-family:'Space Mono',monospace;
+    font-size:10px;
+    color:var(--text-faint);
+    font-weight:400;
+    letter-spacing:1px;
+  }
+  .topbar-div{ width:1px; height:26px; background:var(--line); }
+
+  .breadcrumb{
+    font-family:'Space Mono',monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .breadcrumb b{ color:var(--text); font-weight:400; }
+
+  .topbar-right{
+    margin-left:auto;
+    display:flex;
+    align-items:center;
+    gap:22px;
+  }
+  .stat-chip{
+    display:flex; flex-direction:column;
+    align-items:flex-end;
+    line-height:1.2;
+  }
+  .stat-chip .label{
+    font-size:10px; color:var(--text-faint);
+    letter-spacing:1.5px;
+    font-family:'Inter',sans-serif;
+  }
+  .stat-chip .value{
+    font-family:'Space Mono',monospace;
+    font-size:14px;
+    color:var(--text);
+  }
+  .stat-chip .value.amber{ color:var(--amber); }
+
+  .pilot-tag{
+    display:flex; align-items:center; gap:10px;
+    padding:6px 14px 6px 6px;
+    border:1px solid var(--line-bright);
+    clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+  }
+  .pilot-avatar{
+    width:30px; height:30px;
+    background:linear-gradient(135deg, var(--signal-dim), var(--signal));
+    clip-path: polygon(20% 0, 100% 0, 100% 80%, 80% 100%, 0 100%, 0 20%);
+  }
+  .pilot-tag .name{ font-size:12.5px; font-weight:600; }
+  .pilot-tag .rank{ font-size:10px; color:var(--text-faint); font-family:'Space Mono',monospace; }
+
+  /* ---------- CONTENT ---------- */
+  .content{
+    flex:1;
+    padding:32px 36px 60px;
+    max-width:1400px;
+    width:100%;
+  }
+
+  .page-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    margin-bottom:28px;
+  }
+  .page-head h1{
+    font-family:'Aquire','Rajdhani',sans-serif;
+    font-weight:600;
+    font-size:26px;
+    letter-spacing:0.3px;
+  }
+  .page-head p{
+    color:var(--text-dim);
+    font-size:13.5px;
+    margin-top:4px;
+    max-width:46ch;
+  }
+  .sync-status{
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    color:var(--text-faint);
+    display:flex; align-items:center; gap:8px;
+  }
+  .sync-status .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 6px var(--green);
+  }
+
+  /* ---------- HERO / INSTRUMENT CLUSTER ---------- */
+  .cluster{
+    display:grid;
+    grid-template-columns: 340px 1fr;
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-bottom:1px;
+  }
+  .cluster > div{ background:var(--panel); }
+
+  .dial-panel{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:30px 20px;
+    position:relative;
+  }
+  .dial-panel .corner{ position:absolute; width:14px; height:14px; border-color:var(--signal-dim); opacity:0.7; }
+  .corner.tl{ top:10px; left:10px; border-top:1px solid; border-left:1px solid; }
+  .corner.br{ bottom:10px; right:10px; border-bottom:1px solid; border-right:1px solid; }
+
+  .dial{ position:relative; width:200px; height:200px; }
+  .dial svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .dial-center{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .dial-center .num{
+    font-family:'Aquire','Rajdhani',sans-serif;
+    font-size:42px; font-weight:700; color:var(--signal);
+    line-height:1;
+    text-shadow:0 0 18px rgba(74,158,255,0.4);
+  }
+  .dial-center .lbl{
+    font-size:10px; letter-spacing:2px; color:var(--text-faint);
+    margin-top:6px;
+  }
+  .dial-caption{
+    margin-top:18px; text-align:center;
+  }
+  .dial-caption .title{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:15px; }
+  .dial-caption .sub{ font-size:11.5px; color:var(--text-dim); margin-top:3px; }
+
+  .readout-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(2,1fr);
+  }
+  .readout{
+    padding:22px 24px;
+    border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .readout:nth-child(3n){ border-right:none; }
+  .readout:nth-child(n+4){ border-bottom:none; }
+  .readout .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .readout .lbl{ font-size:10.5px; color:var(--text-faint); letter-spacing:1.5px; }
+  .readout .trend{ font-family:'Space Mono',monospace; font-size:10.5px; }
+  .trend.up{ color:var(--green); }
+  .trend.down{ color:#E86B5A; }
+  .readout .big{
+    font-family:'Space Mono',monospace;
+    font-size:26px;
+    margin-top:14px;
+  }
+  .readout .unit{ font-size:12px; color:var(--text-dim); margin-left:4px; }
+
+  /* ---------- MODULE GRID ---------- */
+  .modules{
+    display:grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap:22px;
+    margin-top:22px;
+  }
+  .col{ display:flex; flex-direction:column; gap:22px; }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    position:relative;
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-head h2{
+    font-family:'Aquire','Rajdhani',sans-serif;
+    font-size:15px; font-weight:600; letter-spacing:0.4px;
+  }
+  .panel-head .count{
+    font-family:'Space Mono',monospace;
+    font-size:11px; color:var(--text-faint);
+  }
+  .panel-body{ padding:6px 0; }
+
+  .contract-row{
+    display:grid;
+    grid-template-columns: 8px 1fr auto auto;
+    align-items:center;
+    gap:16px;
+    padding:14px 20px;
+    border-bottom:1px solid rgba(40,51,63,0.6);
+    transition:background .15s ease;
+  }
+  .contract-row:last-child{ border-bottom:none; }
+  .contract-row:hover{ background:rgba(255,255,255,0.02); }
+  .pri{ width:8px; height:8px; clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); }
+  .pri.high{ background:var(--amber); box-shadow:0 0 8px var(--amber); }
+  .pri.norm{ background:var(--signal); box-shadow:0 0 8px var(--signal); }
+  .pri.low{ background:var(--text-faint); }
+  .c-title{ font-size:13.5px; font-weight:500; }
+  .c-sub{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .c-reward{ font-family:'Space Mono',monospace; font-size:13px; text-align:right; }
+  .c-reward .aUEC{ color:var(--text-faint); font-size:10px; margin-left:3px; }
+  .c-tag{
+    font-size:9.5px; letter-spacing:1px;
+    padding:4px 8px;
+    border:1px solid var(--line-bright);
+    color:var(--text-dim);
+    white-space:nowrap;
+  }
+
+  .ship-row{
+    display:grid;
+    grid-template-columns:44px 1fr auto;
+    align-items:center;
+    gap:14px;
+    padding:13px 20px;
+    border-bottom:1px solid rgba(40,51,63,0.6);
+  }
+  .ship-row:last-child{ border-bottom:none; }
+  .ship-icon{
+    width:44px; height:30px;
+    background:var(--panel-raised);
+    border:1px solid var(--line-bright);
+    clip-path:polygon(10% 0,90% 0,100% 50%,90% 100%,10% 100%,0 50%);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint);
+    font-family:'Space Mono',monospace;
+    font-size:9px;
+  }
+  .ship-name{ font-size:13px; font-weight:500; }
+  .ship-loc{ font-size:11px; color:var(--text-faint); margin-top:2px; }
+  .status-pill{
+    font-size:10px; letter-spacing:1px;
+    padding:4px 9px;
+  }
+  .status-pill.online{ color:var(--green); border:1px solid rgba(79,209,165,0.35); }
+  .status-pill.transit{ color:var(--signal); border:1px solid rgba(74,158,255,0.35); }
+  .status-pill.dock{ color:var(--text-dim); border:1px solid var(--line-bright); }
+
+  .market-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 20px;
+    border-bottom:1px solid rgba(40,51,63,0.6);
+    font-size:13px;
+  }
+  .market-row:last-child{border-bottom:none;}
+  .market-name{ font-weight:500; }
+  .market-loc{ color:var(--text-faint); font-size:11px; }
+  .market-price{ font-family:'Space Mono',monospace; text-align:right; }
+
+  .comm-row{
+    padding:14px 20px;
+    border-bottom:1px solid rgba(40,51,63,0.6);
+  }
+  .comm-row:last-child{ border-bottom:none; }
+  .comm-top{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-faint); margin-bottom:4px; font-family:'Space Mono',monospace;}
+  .comm-body{ font-size:13px; color:var(--text); line-height:1.5; }
+  .comm-body b{ color:var(--signal); font-weight:600; }
+
+  .btn-line{
+    display:block;
+    text-align:center;
+    padding:12px;
+    font-size:11.5px;
+    letter-spacing:1px;
+    color:var(--text-dim);
+    border-top:1px solid var(--line);
+    cursor:pointer;
+  }
+  .btn-line:hover{ color:var(--signal); background:rgba(74,158,255,0.04); }
+
+  @media (max-width: 980px){
+    .cluster{ grid-template-columns:1fr; }
+    .modules{ grid-template-columns:1fr; }
+    .readout-grid{ grid-template-columns:repeat(2,1fr); }
+    .readout:nth-child(3n){ border-right:1px solid var(--line); }
+    .readout:nth-child(2n){ border-right:none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- LEFT RAIL -->
+  <nav class="rail">
+    <div class="rail-mark" title="USSA">
+      <img src="../assets/ussa-mark.png" alt="USSA">
+    </div>
+    <div class="rail-nav">
+      <div class="rail-item active" title="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      </div>
+      <div class="rail-item" title="Fleet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l6-7h8l6 7-6 7H8z"/></svg>
+      </div>
+      <div class="rail-item" title="Contracts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2h9l5 5v15H6z"/><path d="M9 12h6M9 16h6M9 8h3"/></svg>
+      </div>
+      <div class="rail-item" title="Market">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17l5-6 4 4 8-9"/></svg>
+      </div>
+      <div class="rail-item" title="Personnel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+      </div>
+      <div class="rail-item" title="Security Division">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5z"/></svg>
+      </div>
+      <div class="rail-item" title="Comms">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v12H8l-4 4z"/></svg>
+      </div>
+    </div>
+    <div class="rail-foot">
+      <div class="dot"></div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--text-faint)"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8L7 17M17 7l2.8-2.8"/></svg>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-text">USSA<span>UNITED SPACE SECURITIES ASSOC.</span><small>CORP-NET</small></div>
+      </div>
+      <div class="topbar-div"></div>
+      <div class="breadcrumb">TERMINAL <b>/ HURSTON HUB / DASHBOARD</b></div>
+
+      <div class="topbar-right">
+        <div class="stat-chip">
+          <div class="label">CORP BALANCE</div>
+          <div class="value">4,218,600 <span style="color:var(--text-faint);font-size:10px">aUEC</span></div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">ALERT LEVEL</div>
+          <div class="value amber" id="clockAlert">GREEN</div>
+        </div>
+        <div class="pilot-tag">
+          <div class="pilot-avatar"></div>
+          <div>
+            <div class="name">R. VOSS</div>
+            <div class="rank">EXTRACTION OPS LEAD // L4</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <div class="page-head">
+        <div>
+          <h1>Corporate Dashboard</h1>
+          <p>Extraction, industrial output, freight and security division status across USSA operating sectors.</p>
+        </div>
+        <div class="sync-status"><span class="dot"></span> LIVE FEED — <span id="clockTime">SYNCED</span></div>
+      </div>
+
+      <!-- INSTRUMENT CLUSTER -->
+      <div class="cluster">
+        <div class="dial-panel">
+          <span class="corner tl"></span><span class="corner br"></span>
+          <div class="dial">
+            <svg viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="86" fill="none" stroke="#1F2A35" stroke-width="10"/>
+              <circle cx="100" cy="100" r="86" fill="none" stroke="#4A9EFF" stroke-width="10"
+                stroke-dasharray="540" stroke-dashoffset="130" stroke-linecap="round"
+                style="filter:drop-shadow(0 0 6px rgba(74,158,255,0.6))"/>
+            </svg>
+            <div class="dial-center">
+              <div class="num">82</div>
+              <div class="lbl">STANDING INDEX</div>
+            </div>
+          </div>
+          <div class="dial-caption">
+            <div class="title">USSA Standing: Trusted</div>
+            <div class="sub">+4 pts this cycle · next tier at 90</div>
+          </div>
+        </div>
+
+        <div class="readout-grid">
+          <div class="readout">
+            <div class="top-row"><span class="lbl">ACTIVE CONTRACTS</span><span class="trend up">▲ 3</span></div>
+            <div class="big">17</div>
+          </div>
+          <div class="readout">
+            <div class="top-row"><span class="lbl">FLEET ONLINE</span><span class="trend up">▲ 2</span></div>
+            <div class="big">24<span class="unit">/ 30</span></div>
+          </div>
+          <div class="readout">
+            <div class="top-row"><span class="lbl">ORE REFINED (CYCLE)</span></div>
+            <div class="big">2,460<span class="unit">SCU</span></div>
+          </div>
+          <div class="readout">
+            <div class="top-row"><span class="lbl">SECURITY DETAILS ACTIVE</span></div>
+            <div class="big">6</div>
+          </div>
+          <div class="readout">
+            <div class="top-row"><span class="lbl">MARKET DELTA (RMC)</span><span class="trend down">▼ 1.2%</span></div>
+            <div class="big">6.84<span class="unit">aUEC/u</span></div>
+          </div>
+          <div class="readout">
+            <div class="top-row"><span class="lbl">CLAIM INCURSIONS</span></div>
+            <div class="big" style="color:var(--amber)">2</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE GRID -->
+      <div class="modules">
+        <div class="col">
+
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Active Contracts</h2>
+              <span class="count">14 OPEN</span>
+            </div>
+            <div class="panel-body">
+              <div class="contract-row">
+                <span class="pri high"></span>
+                <div><div class="c-title">Claim defense — Hostile incursion, Aaron Halo B7</div><div class="c-sub">Priority · Deadline 1h 40m</div></div>
+                <div class="c-reward">94,000<span class="aUEC">aUEC</span></div>
+                <div class="c-tag">SECURITY</div>
+              </div>
+              <div class="contract-row">
+                <span class="pri norm"></span>
+                <div><div class="c-title">Refined RMC bulk delivery — Aaron Halo belt</div><div class="c-sub">Standard · Deadline 1d 4h</div></div>
+                <div class="c-reward">112,000<span class="aUEC">aUEC</span></div>
+                <div class="c-tag">MINING</div>
+              </div>
+              <div class="contract-row">
+                <span class="pri norm"></span>
+                <div><div class="c-title">Armed escort — Refinery freight, Yela corridor</div><div class="c-sub">Standard · Deadline 8h 00m</div></div>
+                <div class="c-reward">76,500<span class="aUEC">aUEC</span></div>
+                <div class="c-tag">SECURITY</div>
+              </div>
+              <div class="contract-row">
+                <span class="pri norm"></span>
+                <div><div class="c-title">Industrial equipment transfer — Hurston → Lorville</div><div class="c-sub">Standard · Deadline 14h</div></div>
+                <div class="c-reward">58,300<span class="aUEC">aUEC</span></div>
+                <div class="c-tag">LOGISTICS</div>
+              </div>
+              <div class="contract-row">
+                <span class="pri low"></span>
+                <div><div class="c-title">Asteroid survey — New extraction site, belt C</div><div class="c-sub">Low priority · Deadline 3d</div></div>
+                <div class="c-reward">29,900<span class="aUEC">aUEC</span></div>
+                <div class="c-tag">MINING</div>
+              </div>
+            </div>
+            <div class="btn-line">VIEW ALL CONTRACTS</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Commodity Market</h2>
+              <span class="count">ARC-L1 EXCHANGE</span>
+            </div>
+            <div class="panel-body">
+              <div class="market-row">
+                <div><div class="market-name">Recycled Material Composite</div><div class="market-loc">Area18 · Lorville</div></div>
+                <div class="market-price" style="color:var(--green)">6.84 ▲</div>
+              </div>
+              <div class="market-row">
+                <div><div class="market-name">Titanium Ore</div><div class="market-loc">Hurston · HDMS refinery</div></div>
+                <div class="market-price" style="color:#E86B5A">18.60 ▼</div>
+              </div>
+              <div class="market-row">
+                <div><div class="market-name">Ballistic Armor Plating</div><div class="market-loc">Security Div. Depot</div></div>
+                <div class="market-price" style="color:var(--green)">41.20 ▲</div>
+              </div>
+              <div class="market-row">
+                <div><div class="market-name">Quantainium</div><div class="market-loc">CRU-L1</div></div>
+                <div class="market-price" style="color:var(--text-dim)">102.40 —</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="col">
+
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Fleet Status</h2>
+              <span class="count">21 / 26 ONLINE</span>
+            </div>
+            <div class="panel-body">
+              <div class="ship-row">
+                <div class="ship-icon">MOL</div>
+                <div><div class="ship-name">MOLE × 3 "Deepcut Wing"</div><div class="ship-loc">Extracting · Aaron Halo, cluster B</div></div>
+                <span class="status-pill online">ACTIVE</span>
+              </div>
+              <div class="ship-row">
+                <div class="ship-icon">C2</div>
+                <div><div class="ship-name">Hercules C2 "Longhaul"</div><div class="ship-loc">En route · Hurston → Lorville</div></div>
+                <span class="status-pill transit">TRANSIT</span>
+              </div>
+              <div class="ship-row">
+                <div class="ship-icon">CAT</div>
+                <div><div class="ship-name">Caterpillar "Ironback"</div><div class="ship-loc">Docked · Baijini Point</div></div>
+                <span class="status-pill dock">DOCKED</span>
+              </div>
+              <div class="ship-row">
+                <div class="ship-icon">GLA</div>
+                <div><div class="ship-name">Gladius Flight × 2 — Security Div.</div><div class="ship-loc">Claim defense · Aaron Halo B7</div></div>
+                <span class="status-pill online">ACTIVE</span>
+              </div>
+            </div>
+            <div class="btn-line">OPEN FLEET MANAGER</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Corp Comms</h2>
+              <span class="count">3 NEW</span>
+            </div>
+            <div class="panel-body">
+              <div class="comm-row">
+                <div class="comm-top"><span>SECURITY DIV.</span><span>03m ago</span></div>
+                <div class="comm-body"><b>Auto-Alert:</b> Unregistered vessel detected near claim B7 — Gladius flight diverted to intercept.</div>
+              </div>
+              <div class="comm-row">
+                <div class="comm-top"><span>OPS // EXTRACTION</span><span>22m ago</span></div>
+                <div class="comm-body"><b>J. Okafor:</b> Deepcut Wing hit yield target early — clearing the site for a second pass.</div>
+              </div>
+              <div class="comm-row">
+                <div class="comm-top"><span>MARKET DESK</span><span>1h ago</span></div>
+                <div class="comm-body"><b>T. Reyes:</b> RMC prices climbing at Area18 — holding the refined haul for a better sell window.</div>
+              </div>
+            </div>
+            <div class="btn-line">OPEN COMMS CHANNEL</div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // live-feeling clock + subtle alert flicker, nothing more
+  function pad(n){ return n.toString().padStart(2,'0'); }
+  function tick(){
+    const d = new Date();
+    document.getElementById('clockTime').textContent =
+      pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+' UTC';
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  const rail = document.querySelectorAll('.rail-item');
+  rail.forEach(item=>{
+    item.addEventListener('click', ()=>{
+      rail.forEach(i=>i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
