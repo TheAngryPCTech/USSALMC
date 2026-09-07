@@ -26,16 +26,19 @@ async function getPublicEntity(id: string) {
 // source.hidden is set, suppress the source URL/origin from the public payload
 // but keep confidence + last_verified so every fact still carries its confidence
 // (per the cross-phase rule). The internal `hidden` flag is never leaked.
-function serveEntity<T extends { source?: any }>(ent: T): T {
-  const src = ent.source;
+function serveEntity<T extends { source?: any; edited_by_admin?: boolean }>(ent: T): T {
+  // edited_by_admin is an internal moderation signal (used by the connector's
+  // force-overwrite import), not part of the public entity schema.
+  const { edited_by_admin, ...ent2 } = ent as any;
+  const src = ent2.source;
   if (src && src.hidden) {
-    return { ...ent, source: { origin: null, url: null, confidence: src.confidence ?? null, last_verified: src.last_verified ?? null } };
+    return { ...ent2, source: { origin: null, url: null, confidence: src.confidence ?? null, last_verified: src.last_verified ?? null } };
   }
   if (src && 'hidden' in src) {
     const { hidden, ...rest } = src;
-    return { ...ent, source: rest };
+    return { ...ent2, source: rest };
   }
-  return ent;
+  return ent2;
 }
 
 export function registerRoutes(app: FastifyInstance) {

@@ -23,14 +23,14 @@ import { query } from '../../api/src/db.js';
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 50);
 }
-function entityIdFor(category: string, title: string): string {
+export function entityIdFor(category: string, title: string): string {
   const typePrefix = category === 'ship' ? 'ship'
     : category === 'manufacturer' ? 'manufacturer'
     : category === 'weapon' ? 'item'
     : category;
   return `${typePrefix}_${slugify(title)}`;
 }
-function entityTypeFor(category: string): UpsertInput['type'] {
+export function entityTypeFor(category: string): UpsertInput['type'] {
   if (category === 'location') return 'location';
   if (category === 'commodity') return 'commodity';
   if (category === 'quest') return 'quest';
@@ -220,7 +220,7 @@ type ProcessedPage = ApplyResult['processed'][number];
 // (resolving relation links, stamping the category so it sticks in the tree).
 // Used by processCategoryPage AND the re-weigh path so a re-weighed item is
 // published from the CURRENT template's extraction, not a stale draft.
-async function buildTemplateDraft(
+export async function buildTemplateDraft(
   tpl: ScrapeTemplate, ex: ExtractionResult, category: string, domain: string, url: string,
   applied: ReturnType<typeof applyTemplate>,
 ): Promise<{ draft: UpsertInput; linkSuggestions: any[] }> {

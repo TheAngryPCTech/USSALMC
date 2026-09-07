@@ -45,6 +45,11 @@ export interface Entity {
   freshness_class: FreshnessClass;
   ai_context: string | null;
   embedding_id: string | null;
+  // True once any admin content edit has ever touched this entity (set only
+  // by entities-admin.ts's republish(); the normal scraper publish path never
+  // sets or clears it). Read-only signal for the force-overwrite connector
+  // import to decide whether an overwrite is clobbering a manual edit.
+  edited_by_admin?: boolean;
   created_at?: string;
   updated_at?: string;
 }

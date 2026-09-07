@@ -39,6 +39,7 @@ to the `type` CHECK constraint via a new migration and log the decision.)
 | freshness_class  | TEXT          | `static` \| `volatile` (CHECK); `trade_route` defaults volatile |
 | ai_context       | TEXT          | **auto-generated** prose; never hand-written; regenerated on every write |
 | embedding_id     | TEXT          | links to `embeddings.id` (`emb_<entity_id>`) |
+| edited_by_admin  | BOOLEAN       | true once any admin content edit has ever touched this row (set only by the admin's manual-edit path; the scraper's normal publish never sets/clears it). Internal only — stripped from public `/v1` responses. |
 | created_at       | TIMESTAMPTZ   | |
 | updated_at       | TIMESTAMPTZ   | bumped on every write |
 
@@ -197,13 +198,15 @@ single `confirm:true` for `super_admin` vs. typing the exact entity name for
 `admin`. Additional admin accounts (and their role/email) are created via
 `POST /admin/admins`, super_admin-only.
 
-## `entity_audit_log` table (migration 0007) — delete audit trail
-One row per soft-delete/restore/hard-delete, snapshotting the **full entity**
-at the moment of the action (so a hard delete is never a silent, unrecoverable-
-without-a-trace loss): `id`, `entity_id` (no FK — the row may no longer
-exist after a hard delete), `action` (`soft_delete`/`restore`/`hard_delete`),
-`snapshot` (JSONB, the full entity object), `performed_by` (admin_users
-username), `created_at`.
+## `entity_audit_log` table (migration 0007, extended 0010) — destructive-change audit trail
+One row per soft-delete/restore/hard-delete/**connector force-overwrite**,
+snapshotting the **full entity** at the moment of the action (so none of
+these is ever a silent, unrecoverable-without-a-trace loss): `id`,
+`entity_id` (no FK — the row may no longer exist after a hard delete),
+`action` (`soft_delete`/`restore`/`hard_delete`/`connector_force_overwrite`),
+`snapshot` (JSONB, the full entity object as it was right before the action),
+`performed_by` (admin_users username, or the bulk-import job_key for a
+connector overwrite), `created_at`.
 
 ### Tiered delete (concept)
 - **Soft delete** ("Remove entry"): sets `entities.status='removed'`. The
@@ -308,3 +311,30 @@ every confirm/flag to `wp_get_current_user()->user_login` when logged in, else
 the literal string `'anonymous'` — never a client-supplied value the browser
 could forge as someone else's identity (WordPress's own session determines it
 server-side, in the AJAX handler, not from anything the request body claims).
+
+## Phase 9 tables — connector force-overwrite import (migration `0010_force_overwrite_import.sql`)
+
+### `bulk_import_jobs` — one row per bulk-import job (resumable across processes)
+`id`, `job_key` (TEXT, UNIQUE — re-running the same key resumes instead of
+restarting), `categories` (JSONB string array), `force_overwrite` (BOOLEAN),
+`status` (`running`/`paused_rate_limit`/`done`/`error`), `summary` (JSONB —
+running per-category `created`/`overwritten_clean`/`overwritten_manual`
+counts, kept current even if the process exits mid-run), `created_at`,
+`updated_at`.
+
+### `bulk_import_progress` — one row per URL the job has finished with
+`(job_id, url)` PK, `category`, `status` (`done`/`skipped`/`error`),
+`outcome` (`created`/`overwritten_clean`/`overwritten_manual`/null),
+`entity_id`, `note`, `processed_at`. A resumed run (same `job_key`) skips any
+URL already present here, so a rate-limit pause never re-fetches or
+re-overwrites already-processed pages.
+
+### Rate limiting (concept, not a table of its own)
+The bulk-import job counts its own `scrape_log` rows (`action =
+'bulk_import_fetch'`) over rolling 60-second/24-hour windows before each
+fetch — 40/min, 500/day (`SCRAPER_BULK_IMPORT_RATE_PER_MIN` /
+`SCRAPER_BULK_IMPORT_RATE_PER_DAY`, `.env.example`). Hitting the daily cap
+sets the job to `paused_rate_limit` and exits cleanly; re-running with the
+same `job_key` resumes. This is scoped to the bulk-import job specifically —
+it does not change the scraper's existing flat 1-second politeness gap used
+by ordinary scan/confirm/category-batch runs.

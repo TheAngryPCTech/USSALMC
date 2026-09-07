@@ -285,5 +285,12 @@ ussalmc-theme active, 1 demo page (`?page_id=5`) using the wiki shortcode.
 - [ ] Rotate the host sudo password (it appeared in a build-session chat).
 - [ ] Phase 5 candidates: Discord bot + Twitch bot (`apps/bots/*`, discord.js /
       tmi.js) using DISCORD_API_KEY / TWITCH_API_KEY; WordPress/wiki consumer.
+- [ ] **Resume the Phase 9 initial force-overwrite import** — paused at the
+      500/day fetch cap partway through `manufacturer` (see decisions-log).
+      Re-run from `apps/admin` inside the admin container:
+      `npm run bulk-import -- --force-overwrite --categories=ship,manufacturer,weapon,location,commodity --job-key=initial_force_pull --max-per-category=500`
+      (same `job_key` resumes; safe to re-run daily until `bulk_import_jobs.status='done'`).
+      This is a one-time flag for this initial pull only — do not add
+      `--force-overwrite` to any scheduled/cron invocation.
 - [x] ~~Give admin its own TLS domain~~ — done in Phase 7 (admin.ussa.space,
       COOKIE_SECURE=true), needed to make the SSO iframe actually work.

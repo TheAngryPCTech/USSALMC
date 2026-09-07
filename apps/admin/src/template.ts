@@ -37,7 +37,13 @@ export function domainOf(url: string): string {
 export function guessCategory(ex: ExtractionResult): string | null {
   const cats = ex.categories.map((c) => c.toLowerCase());
   if (cats.some((c) => /manufacturer|corporation|\bcompan(y|ies)\b/.test(c))) return 'manufacturer';
-  if (cats.some((c) => /weapons?\b/.test(c))) return 'weapon';
+  // starcitizen.tools' real weapon category is "Guns" (no "weapon" substring at
+  // all) — confirmed live via the MediaWiki API before writing this ('WAR'
+  // Cannon carries Category:Guns, not anything containing "weapon"). guessCategory
+  // only ever matched a literal "weapon(s)" substring, so weapon pages were never
+  // actually auto-detectable; mirrors the CATEGORY_HINTS.weapon regex already
+  // used (correctly) for discovery ranking in fetcher.ts.
+  if (cats.some((c) => /weapons?\b|\bguns?\b|cannon|repeater|gatling|missile|torpedo|turret/.test(c))) return 'weapon';
   if (cats.some((c) => /commodit/.test(c))) return 'commodity';
   if (cats.some((c) => /locations?|planets?|moons?|stations?|landing zone|cities|outposts?/.test(c))) return 'location';
   if (cats.some((c) => c === 'ships' || /\bships?\b/.test(c) || /vehicles?/.test(c))) return 'ship';

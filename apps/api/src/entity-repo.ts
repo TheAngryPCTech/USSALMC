@@ -9,7 +9,7 @@ import { embed, toVectorLiteral } from './embeddings.js';
 const COLUMNS = `
   id, type, name, aliases, summary, body, attributes, relations, images,
   source, game_version, status, freshness_class, ai_context, embedding_id,
-  created_at, updated_at`;
+  edited_by_admin, created_at, updated_at`;
 
 function rowToEntity(r: any): Entity {
   return {
@@ -28,6 +28,7 @@ function rowToEntity(r: any): Entity {
     freshness_class: r.freshness_class,
     ai_context: r.ai_context,
     embedding_id: r.embedding_id,
+    edited_by_admin: r.edited_by_admin ?? false,
     created_at: r.created_at?.toISOString?.() ?? r.created_at,
     updated_at: r.updated_at?.toISOString?.() ?? r.updated_at,
   };

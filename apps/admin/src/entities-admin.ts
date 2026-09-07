@@ -45,12 +45,22 @@ export function entityCategory(e: Entity): string {
 }
 
 // republish an entity through the canonical upsert path (regenerates ai_context+embedding)
-async function republish(e: Entity) {
+// markManual: true for actual content edits (name/summary/attributes/images/
+// relations/category) — false for status-only actions (soft-delete/restore,
+// which are already separately audited via entity_audit_log). This is the
+// ONLY place edited_by_admin is ever set; upsertEntity itself never touches
+// it, so the scraper's normal publish path can't set or clear it either way
+// — it's purely a "did a human ever touch this entity's content" signal for
+// the force-overwrite import to check before clobbering.
+async function republish(e: Entity, markManual = true) {
   await upsertEntity({
     id: e.id, type: e.type, name: e.name, aliases: e.aliases, summary: e.summary,
     body: e.body, attributes: e.attributes, relations: e.relations, images: e.images,
     source: e.source, game_version: e.game_version, status: e.status, freshness_class: e.freshness_class,
   });
+  if (markManual) {
+    await query(`UPDATE entities SET edited_by_admin = true WHERE id = $1`, [e.id]);
+  }
 }
 
 export interface EntityListRow {
@@ -232,7 +242,7 @@ export async function softDeleteEntity(id: string, performedBy: string | null) {
   if (!e) throw new Error(`No entity ${id}`);
   await snapshotAudit(e, 'soft_delete', performedBy);
   e.status = 'removed';
-  await republish(e);
+  await republish(e, false);
   return getEntityForAdmin(id);
 }
 
@@ -242,7 +252,7 @@ export async function restoreEntity(id: string, performedBy: string | null) {
   if (e.status !== 'removed') throw new Error(`Entity ${id} is not removed.`);
   await snapshotAudit(e, 'restore', performedBy);
   e.status = 'current';
-  await republish(e);
+  await republish(e, false);
   return getEntityForAdmin(id);
 }
 
