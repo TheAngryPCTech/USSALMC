@@ -41,6 +41,12 @@ export function guessCategory(ex: ExtractionResult): string | null {
   if (cats.some((c) => /commodit/.test(c))) return 'commodity';
   if (cats.some((c) => /locations?|planets?|moons?|stations?|landing zone|cities|outposts?/.test(c))) return 'location';
   if (cats.some((c) => c === 'ships' || /\bships?\b/.test(c) || /vehicles?/.test(c))) return 'ship';
+  // Missions/quests: starcitizen.tools has no "Missions"/"Quests" category —
+  // real in-game jobs live under "Contracts" (+ "<Faction> contracts",
+  // "Verified contracts", "Contract series"). Confirmed live via the MediaWiki
+  // API before wiring this: a real page ("A Call to Arms") carries
+  // Category:Contracts + Category:Mercenary contracts.
+  if (cats.some((c) => /\bcontracts?\b/.test(c))) return 'quest';
   return null;
 }
 

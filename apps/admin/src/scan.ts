@@ -33,6 +33,7 @@ function entityIdFor(category: string, title: string): string {
 function entityTypeFor(category: string): UpsertInput['type'] {
   if (category === 'location') return 'location';
   if (category === 'commodity') return 'commodity';
+  if (category === 'quest') return 'quest';
   return 'item'; // ship/manufacturer/weapon modeled as item in Phase 1
 }
 

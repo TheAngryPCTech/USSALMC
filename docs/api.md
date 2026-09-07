@@ -39,7 +39,10 @@ Codes: `unauthorized` (401, missing key), `invalid_key` (401, unknown/disabled),
 ## Entities
 ### `GET /v1/entities`
 Query params: `type`, `query` (substring on name/summary), `version`
-(game_version), `limit` (≤200, default 50), `offset`.
+(game_version), `sort` (`recent` orders by `updated_at` desc — covers both
+newly-added entities and existing ones refreshed by a later connector run or
+admin edit; any other/absent value keeps the default alphabetical-by-name
+order), `limit` (≤200, default 50), `offset`.
 → `{ "total": N, "items": [ <entity>, ... ] }`
 
 ### `GET /v1/entities/:id`

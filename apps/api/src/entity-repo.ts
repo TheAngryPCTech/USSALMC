@@ -40,7 +40,7 @@ export async function getEntity(id: string): Promise<Entity | null> {
 
 export async function listEntities(opts: {
   type?: string; queryText?: string; version?: string; limit?: number; offset?: number;
-  includeRemoved?: boolean;
+  includeRemoved?: boolean; sort?: string;
 }): Promise<{ items: Entity[]; total: number }> {
   const where: string[] = [];
   const params: any[] = [];
@@ -54,10 +54,15 @@ export async function listEntities(opts: {
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const limit = Math.min(opts.limit ?? 50, 200);
   const offset = opts.offset ?? 0;
+  // sort=recent -> most recently added/updated first (by updated_at, which
+  // upsertEntity bumps on every publish, so this covers both brand-new
+  // entities and existing ones that got a data refresh). Default unchanged
+  // (alphabetical by name) so every existing caller keeps its current order.
+  const orderSql = opts.sort === 'recent' ? 'ORDER BY updated_at DESC' : 'ORDER BY name';
 
   const totalRes = await query(`SELECT count(*)::int AS n FROM entities ${whereSql}`, params);
   const listRes = await query(
-    `SELECT ${COLUMNS} FROM entities ${whereSql} ORDER BY name LIMIT ${limit} OFFSET ${offset}`,
+    `SELECT ${COLUMNS} FROM entities ${whereSql} ${orderSql} LIMIT ${limit} OFFSET ${offset}`,
     params,
   );
   return { items: listRes.rows.map(rowToEntity), total: totalRes.rows[0].n };

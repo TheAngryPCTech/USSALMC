@@ -42,6 +42,7 @@ const CATEGORY_HINTS: Record<string, RegExp> = {
   weapon: /weapon|gun|cannon|repeater|gatling|missile|torpedo|turret/i,
   commodity: /commodit/i,
   location: /location|planet|moon|station|city|outpost|landing zone/i,
+  quest: /contract/i,
 };
 
 // Discover other pages in the same category. For MediaWiki sites we use the API

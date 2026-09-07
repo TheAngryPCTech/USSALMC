@@ -39,11 +39,13 @@ function serveEntity<T extends { source?: any }>(ent: T): T {
 }
 
 export function registerRoutes(app: FastifyInstance) {
-  // GET /v1/entities?type=&query=&version=
+  // GET /v1/entities?type=&query=&version=&sort=&limit=&offset=
+  // sort: 'recent' orders by updated_at desc (newly added + refreshed entities
+  // both surface); any other/absent value keeps the default alphabetical order.
   app.get('/v1/entities', async (req: any) => {
-    const { type, query: q, version, limit, offset } = req.query;
+    const { type, query: q, version, sort, limit, offset } = req.query;
     const res = await listEntities({
-      type, queryText: q, version,
+      type, queryText: q, version, sort,
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
     });

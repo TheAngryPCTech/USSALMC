@@ -78,6 +78,7 @@ function ussalmc_wiki_list_entities( array $args = array() ) {
 	$qs = http_build_query( array_filter( array(
 		'type'   => $args['type'] ?? 'item',
 		'query'  => $args['query'] ?? '',
+		'sort'   => $args['sort'] ?? '', // 'recent' -> updated_at desc; omitted keeps the default alphabetical order
 		'limit'  => $args['limit'] ?? 200,
 		'offset' => $args['offset'] ?? 0,
 	) ) );

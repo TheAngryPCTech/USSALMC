@@ -1,8 +1,8 @@
 <?php
 /**
- * USSALMC placeholder panels — Fleet, Contracts, Personnel, Comms.
+ * USSALMC placeholder panels — Fleet, Personnel, Comms.
  *
- * These four modules have NO real data source/API yet, so they render static,
+ * These modules have NO real data source/API yet, so they render static,
  * clearly-labeled SAMPLE content in the exact design system. Each panel is split
  * into a data provider (`ussalmc_ph_*_data()`) and a pure renderer
  * (`ussalmc_render_panel_*()`). When a real API exists, ONLY the data provider
@@ -10,6 +10,12 @@
  *
  * Every panel carries a visible "SAMPLE" flag and an inline
  * "TODO: wire to future API once defined." comment at its data boundary.
+ *
+ * CONTRACTS is no longer a placeholder — see ussalmc_render_panel_contracts()
+ * below, which reads real quest entities from the core API. This does NOT
+ * touch the portal plugin's separate Contract post type / accept-complete
+ * system, which stays deferred as originally planned; this is a read-only
+ * informational display only.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -22,41 +28,62 @@ function ussalmc_ph_flag(): string {
 }
 
 /* =========================================================================
-   CONTRACTS
+   CONTRACTS — real data: the 5 most recently added/updated quest entities
+   from the core knowledge base (GET /v1/entities?type=quest&sort=recent&limit=5).
+   Read-only/informational, via the wiki plugin's existing API client
+   (ussalmc_wiki_list_entities / ussalmc_wiki_confidence) so it uses the same
+   Bearer key + error handling as every other real panel. No app-level cache —
+   this is static/non-volatile mission data, queried live on each page load,
+   same convention as the wiki plugin's own reads.
    ========================================================================= */
-function ussalmc_ph_contracts_data(): array {
-	// TODO: wire to future API once defined. Replace this static array with a
-	// fetch (e.g. GET /v1/contracts). Renderer below is data-shape stable.
-	return array(
-		array( 'pri' => 'high', 'title' => 'Claim defense — Hostile incursion, Aaron Halo B7', 'sub' => 'Priority · Deadline 1h 40m', 'reward' => '94,000', 'tag' => 'SECURITY' ),
-		array( 'pri' => 'norm', 'title' => 'Refined RMC bulk delivery — Aaron Halo belt',       'sub' => 'Standard · Deadline 1d 4h',  'reward' => '112,000', 'tag' => 'MINING' ),
-		array( 'pri' => 'norm', 'title' => 'Armed escort — Refinery freight, Yela corridor',    'sub' => 'Standard · Deadline 8h 00m', 'reward' => '76,500',  'tag' => 'SECURITY' ),
-		array( 'pri' => 'norm', 'title' => 'Industrial equipment transfer — Hurston → Lorville', 'sub' => 'Standard · Deadline 14h',    'reward' => '58,300',  'tag' => 'LOGISTICS' ),
-		array( 'pri' => 'low',  'title' => 'Asteroid survey — New extraction site, belt C',      'sub' => 'Low priority · Deadline 3d', 'reward' => '29,900',  'tag' => 'MINING' ),
-	);
-}
 function ussalmc_render_panel_contracts(): string {
-	$rows = ussalmc_ph_contracts_data();
+	$can_fetch = function_exists( 'ussalmc_wiki_list_entities' ) && function_exists( 'ussalmc_wiki_confidence' );
+	$data      = $can_fetch
+		? ussalmc_wiki_list_entities( array( 'type' => 'quest', 'sort' => 'recent', 'limit' => 5 ) )
+		: new WP_Error( 'ussalmc_wiki_inactive', 'USSALMC Wiki plugin is not active.' );
+
 	ob_start(); ?>
-	<div class="panel" data-module="contracts">
+	<div class="panel" data-module="contracts" data-widget="ussalmc-contracts">
 		<div class="panel-head">
 			<h2>Active Contracts</h2>
-			<span class="count"><?php echo count( $rows ); ?> OPEN <?php echo ussalmc_ph_flag(); ?></span>
+			<span class="count">
+				<?php echo is_wp_error( $data ) ? 'FEED DOWN' : (int) ( $data['total'] ?? 0 ) . ' TOTAL'; ?>
+			</span>
 		</div>
 		<div class="panel-body">
-			<?php foreach ( $rows as $r ) : ?>
-				<div class="contract-row">
-					<span class="pri <?php echo esc_attr( $r['pri'] ); ?>"></span>
-					<div>
-						<div class="c-title"><?php echo esc_html( $r['title'] ); ?></div>
-						<div class="c-sub"><?php echo esc_html( $r['sub'] ); ?></div>
-					</div>
-					<div class="c-reward"><?php echo esc_html( $r['reward'] ); ?><span class="aUEC">aUEC</span></div>
-					<div class="c-tag"><?php echo esc_html( $r['tag'] ); ?></div>
+		<?php if ( is_wp_error( $data ) ) : ?>
+			<div class="contract-row">
+				<span class="pri low"></span>
+				<div>
+					<div class="c-title">Contracts feed unavailable</div>
+					<div class="c-sub"><?php echo esc_html( $data->get_error_message() ); ?></div>
 				</div>
-			<?php endforeach; ?>
+			</div>
+		<?php elseif ( empty( $data['items'] ) ) : ?>
+			<div class="contract-row">
+				<span class="pri low"></span>
+				<div>
+					<div class="c-title">No missions in the knowledge base yet</div>
+					<div class="c-sub">Run the connector's mission scan to populate this panel.</div>
+				</div>
+			</div>
+		<?php else : foreach ( $data['items'] as $e ) :
+			$conf  = ussalmc_wiki_confidence( $e );
+			$title = $e['name'] ?? ( $e['id'] ?? '—' );
+			$sub   = wp_trim_words( wp_strip_all_tags( $e['summary'] ?? '' ), 20, '…' );
+			$link  = home_url( '/wiki/?entity=' . rawurlencode( $e['id'] ?? '' ) );
+			?>
+			<a class="contract-row quest-card" href="<?php echo esc_url( $link ); ?>">
+				<span class="pri <?php echo esc_attr( $conf ); ?>"></span>
+				<div>
+					<div class="c-title"><?php echo esc_html( $title ); ?></div>
+					<div class="c-sub"><?php echo esc_html( $sub ?: 'No summary yet.' ); ?></div>
+				</div>
+				<span class="badge confidence-<?php echo esc_attr( $conf ); ?>"><?php echo esc_html( strtoupper( $conf ) ); ?></span>
+			</a>
+		<?php endforeach; endif; ?>
 		</div>
-		<button class="btn-line" type="button" disabled>VIEW ALL CONTRACTS</button>
+		<button class="btn-line" type="button" disabled title="Browse-all is out of scope for this display panel — see each card's link for its entity page">VIEW ALL CONTRACTS</button>
 	</div>
 	<?php
 	return ob_get_clean();
