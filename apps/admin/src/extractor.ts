@@ -181,12 +181,21 @@ export function extract(html: string, pageUrl: string): ExtractionResult {
   // ---- (E) image candidates (infobox/hero images) ----
   const base = new URL(pageUrl);
   const seenImg = new Set<string>();
-  const collectImg = (src: string | undefined, inInfobox: boolean, alt: string) => {
+  const collectImg = (src: string | undefined, inInfobox: boolean, alt: string, width?: string, height?: string) => {
     if (!src) return;
     let url: string;
     try { url = new URL(src, base).toString(); } catch { return; }
-    if (!/\.(png|jpe?g|webp|gif)/i.test(url)) return;
+    if (!/\.(png|jpe?g|webp|gif|svg)/i.test(url)) return;
     if (/logo|icon|sprite|badge|flag|1x1|spacer/i.test(url) && !inInfobox) return;
+    // Small UI chrome (disambiguation-hatnote icons, inline trademark glyphs,
+    // etc.) doesn't always carry a recognizable filename, but it's reliably
+    // tiny — the declared width/height attributes catch what the filename
+    // filter above misses. Only applied when dimensions are actually
+    // declared; an img with no width/height attribute is never rejected on
+    // this basis alone.
+    const w = width ? parseInt(width, 10) : NaN;
+    const h = height ? parseInt(height, 10) : NaN;
+    if (Number.isFinite(w) && Number.isFinite(h) && (w < 60 || h < 60)) return;
     if (seenImg.has(url)) return;
     seenImg.add(url);
     push({
@@ -197,11 +206,13 @@ export function extract(html: string, pageUrl: string): ExtractionResult {
   };
   // infobox images first (become primary candidate)
   $('[class*="infobox"] img, aside img, figure img').each((_, img) => {
-    collectImg($(img).attr('src'), true, clean($(img).attr('alt') || ''));
+    const $img = $(img);
+    collectImg($img.attr('src'), true, clean($img.attr('alt') || ''), $img.attr('width'), $img.attr('height'));
   });
   // then other content images (gallery candidates)
   $('.mw-parser-output img, article img, main img').each((_, img) => {
-    collectImg($(img).attr('src'), false, clean($(img).attr('alt') || ''));
+    const $img = $(img);
+    collectImg($img.attr('src'), false, clean($img.attr('alt') || ''), $img.attr('width'), $img.attr('height'));
   });
 
   return { title, description, categories: [...categories], candidates, jsonLd };
