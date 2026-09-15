@@ -21,6 +21,10 @@ if ( ! defined( 'ABSPATH' ) ) {
    1) COMMODITY MARKET — real confirmed trade routes from the core API.
    --------------------------------------------------------------------------- */
 function ussalmc_portal_render_market( array $args = array() ): string {
+	$gate = ussalmc_portal_verify_gate();
+	if ( $gate !== null ) {
+		return $gate;
+	}
 	$title = $args['title'] ?? 'Commodity Market';
 	$data  = ussalmc_portal_api_get( '/v1/trade-routes', 15 );
 
@@ -70,6 +74,10 @@ function ussalmc_portal_render_market( array $args = array() ): string {
       the API provides them; clearly derived, never fabricated.
    --------------------------------------------------------------------------- */
 function ussalmc_portal_render_stat_readout( array $args = array() ): string {
+	$gate = ussalmc_portal_verify_gate();
+	if ( $gate !== null ) {
+		return $gate;
+	}
 	$entities = ussalmc_portal_api_get( '/v1/entities?type=item&limit=1', 60 );
 	$routes   = ussalmc_portal_api_get( '/v1/trade-routes', 15 );
 
@@ -111,6 +119,10 @@ function ussalmc_portal_render_stat_readout( array $args = array() ): string {
       linking into the wiki. Real data (GET /v1/entities).
    --------------------------------------------------------------------------- */
 function ussalmc_portal_render_module_grid( array $args = array() ): string {
+	$gate = ussalmc_portal_verify_gate();
+	if ( $gate !== null ) {
+		return $gate;
+	}
 	$title = $args['title'] ?? 'Knowledge Base — Recent Entities';
 	$limit = (int) ( $args['limit'] ?? 6 );
 	$data  = ussalmc_portal_api_get( '/v1/entities?type=item&limit=' . $limit, 60 );
