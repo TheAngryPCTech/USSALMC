@@ -83,6 +83,22 @@ wp option update ussalmc_api_base "${USSALMC_API_BASE}" $FLAGS
 wp option update ussalmc_api_key "${USSALMC_API_KEY}" $FLAGS
 echo "[wp-init] wiki plugin configured against ${USSALMC_API_BASE}"
 
+# --- Portal plugin -> StarCitizen-API (RSI handle ownership verification) ---
+if [ -n "${STARCITIZEN_API_KEY:-}" ]; then
+	wp option update ussalmc_starcitizen_api_key "${STARCITIZEN_API_KEY}" $FLAGS
+	echo "[wp-init] portal RSI verification configured (StarCitizen-API key set)."
+else
+	echo "[wp-init] NOTE: STARCITIZEN_API_KEY not set — RSI handle verification will be disabled."
+fi
+
+# --- Portal plugin -> core API, gated trade submission (separate client key) -
+if [ -n "${PORTAL_API_KEY:-}" ]; then
+	wp option update ussalmc_portal_trade_api_key "${PORTAL_API_KEY}" $FLAGS
+	echo "[wp-init] portal gated trade submission configured (portal API key set)."
+else
+	echo "[wp-init] NOTE: PORTAL_API_KEY not set — gated trade submission will be disabled."
+fi
+
 # --- SSO handoff config (wp-admin "USSA Admin" menu -> the admin tool) ------
 if [ -n "${ADMIN_SSO_SECRET:-}" ]; then
 	wp option update ussalmc_sso_secret "${ADMIN_SSO_SECRET}" $FLAGS

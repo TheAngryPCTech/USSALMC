@@ -203,6 +203,11 @@ services:
       # wiki plugin -> core API, in-network; key is the wiki client Bearer key.
       USSALMC_API_BASE: ${USSALMC_API_BASE:-http://api:3000}
       USSALMC_API_KEY: ${WIKI_API_KEY}
+      # portal plugin -> StarCitizen-API (RSI handle ownership verification only).
+      STARCITIZEN_API_KEY: ${STARCITIZEN_API_KEY:-}
+      # portal-only core API client key (gated trade submission; separate identity
+      # from the shared wiki key so only this path can assert rsi_verified=true).
+      PORTAL_API_KEY: ${PORTAL_API_KEY:-}
       # SSO handoff (wp-admin "USSA Admin" menu -> the admin tool): shared HMAC
       # secret + the BROWSER-reachable admin app URL (not the in-network name).
       ADMIN_SSO_SECRET: ${ADMIN_SSO_SECRET}

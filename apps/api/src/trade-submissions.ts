@@ -117,6 +117,14 @@ export interface SubmitInput {
   commodity: string; from_location: string; to_location: string;
   buy_price: number | null; sell_price: number | null;
   account: string | null; client: string | null; ip: string | null;
+  // Set only by the WordPress portal's gated [ussalmc_trade_submit] path, after
+  // its own RSI-handle ownership check (see apps/wordpress-portal-plugin) — the
+  // standalone trade-submit app / bot command never sets this, so those stay
+  // anonymous 'community' submissions exactly as before. Trusted at the value
+  // the calling server-side client (holding the wiki API key) reports, same
+  // trust model as the existing field-corroboration `submitted_by` values.
+  rsi_verified?: boolean;
+  rsi_verified_handle?: string | null;
 }
 
 export interface SubmitOutcome {
@@ -124,6 +132,7 @@ export interface SubmitOutcome {
   route_key: string;
   outcome: 'created' | 'corroborated' | 'conflict-superseded' | 'rate_limited';
   confidence: string;
+  rsi_verified: boolean;
   corroboration_count: number;
   profit_per_unit: number | null;
   last_verified: string | null;
@@ -168,7 +177,8 @@ export async function submitTradeRoute(inp: SubmitInput): Promise<SubmitOutcome>
       submission_id: existing?.id ?? null, action: 'rate_limited', buy, sell, detail: { reasons: abuse.reasons } });
     return {
       id: existing?.id ?? '', route_key: rkey, outcome: 'rate_limited',
-      confidence: existing?.confidence ?? 'community', corroboration_count: existing?.corroboration_count ?? 0,
+      confidence: existing?.confidence ?? 'community', rsi_verified: existing?.rsi_verified ?? false,
+      corroboration_count: existing?.corroboration_count ?? 0,
       profit_per_unit: profit, last_verified: existing?.last_verified ?? null,
       flagged: true, flag_reason: abuse.reasons.join('; '),
       normalization: { commodity, from, to }, history_len: (existing?.price_history?.length ?? 0),
@@ -182,26 +192,34 @@ export async function submitTradeRoute(inp: SubmitInput): Promise<SubmitOutcome>
     const id = `trade_route_${String(seq.rows[0].n + 1).padStart(4, '0')}`;
     const history = [{ buy_price: buy, sell_price: sell, profit_per_unit: profit, account: inp.account, reported_at: now, event: 'initial' }];
     const flagged = abuse.flagged;
+    // A verified submitter's first report skips straight to 'corroborated' —
+    // we already know it's a real, specific citizen, not an anonymous claim —
+    // but never past 'confirmed', and never for a flagged/abusive submission.
+    const verified = !!inp.rsi_verified && !flagged;
+    const initialConfidence = verified ? 'corroborated' : 'community';
     await query(
       `INSERT INTO trade_route_submissions
         (id, commodity, from_location, to_location, buy_price, sell_price, profit_per_unit,
          submitted_by, status, confirmations, last_verified, confidence, corroboration_count,
          submitter_account, contributor_accounts, price_history, flagged, flag_reason,
-         commodity_entity_id, from_entity_id, to_entity_id, route_key)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',0,now(),'community',1,
-         $9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+         commodity_entity_id, from_entity_id, to_entity_id, route_key, rsi_verified, rsi_verified_handle)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',0,now(),$18,1,
+         $9,$10,$11,$12,$13,$14,$15,$16,$17,$19,$20)`,
       [id, commodity.canonical, from.canonical, to.canonical, buy, sell, profit,
        inp.client, inp.account, JSON.stringify(inp.account ? [inp.account] : []),
        JSON.stringify(history), flagged, flagged ? abuse.reasons.join('; ') : null,
-       commodity.entity_id, from.entity_id, to.entity_id, rkey],
+       commodity.entity_id, from.entity_id, to.entity_id, rkey, initialConfidence,
+       verified, verified ? (inp.rsi_verified_handle ?? null) : null],
     );
     await logEvent({ account: inp.account, client: inp.client, ip: inp.ip, route_key: rkey,
-      submission_id: id, action: flagged ? 'flag_abuse' : 'submit', buy, sell, detail: { reasons: abuse.reasons } });
+      submission_id: id, action: flagged ? 'flag_abuse' : 'submit', buy, sell, detail: { reasons: abuse.reasons, rsi_verified: verified } });
     return {
-      id, route_key: rkey, outcome: 'created', confidence: 'community', corroboration_count: 1,
+      id, route_key: rkey, outcome: 'created', confidence: initialConfidence, rsi_verified: verified, corroboration_count: 1,
       profit_per_unit: profit, last_verified: now, flagged, flag_reason: flagged ? abuse.reasons.join('; ') : null,
       normalization: { commodity, from, to }, history_len: 1,
-      note: flagged ? 'Submission stored but FLAGGED for manual review (see flag_reason).' : 'New community submission recorded.',
+      note: flagged ? 'Submission stored but FLAGGED for manual review (see flag_reason).'
+        : verified ? 'New submission from a verified RSI citizen — confidence starts at "corroborated".'
+        : 'New community submission recorded.',
     };
   }
 
@@ -216,20 +234,22 @@ export async function submitTradeRoute(inp: SubmitInput): Promise<SubmitOutcome>
     // AUTO-CORROBORATE: step confidence up, bump last_verified, keep history
     const newCount = (existing.corroboration_count || 1) + 1;
     const newConf = stepUp(existing.confidence || 'community');
+    const nowVerified = !!existing.rsi_verified || !!inp.rsi_verified;
+    const verifiedHandle = existing.rsi_verified ? existing.rsi_verified_handle : (inp.rsi_verified ? (inp.rsi_verified_handle ?? null) : null);
     history.push({ buy_price: buy, sell_price: sell, profit_per_unit: profit, account: inp.account, reported_at: now, event: 'corroboration' });
     const newContrib = inp.account ? [...new Set([...contributors, inp.account])] : contributors;
     await query(
       `UPDATE trade_route_submissions
        SET corroboration_count=$2, confidence=$3, last_verified=now(), updated_at=now(),
            buy_price=$4, sell_price=$5, profit_per_unit=$6,
-           contributor_accounts=$7, price_history=$8
+           contributor_accounts=$7, price_history=$8, rsi_verified=$9, rsi_verified_handle=$10
        WHERE id=$1`,
-      [existing.id, newCount, newConf, buy, sell, profit, JSON.stringify(newContrib), JSON.stringify(history)],
+      [existing.id, newCount, newConf, buy, sell, profit, JSON.stringify(newContrib), JSON.stringify(history), nowVerified, verifiedHandle],
     );
     await logEvent({ account: inp.account, client: inp.client, ip: inp.ip, route_key: rkey,
       submission_id: existing.id, action: 'corroborate', buy, sell, detail: { new_confidence: newConf, count: newCount } });
     return {
-      id: existing.id, route_key: rkey, outcome: 'corroborated', confidence: newConf, corroboration_count: newCount,
+      id: existing.id, route_key: rkey, outcome: 'corroborated', confidence: newConf, rsi_verified: nowVerified, corroboration_count: newCount,
       profit_per_unit: profit, last_verified: now, flagged: existing.flagged, flag_reason: existing.flag_reason,
       normalization: { commodity, from, to }, history_len: history.length,
       note: `Corroborated by an independent report — confidence stepped up to "${newConf}".`,
@@ -251,25 +271,29 @@ export async function submitTradeRoute(inp: SubmitInput): Promise<SubmitOutcome>
       account: existing.submitter_account, reported_at: (existing.updated_at ?? existing.created_at), event: 'conflict-superseded',
     });
     history.push({ buy_price: buy, sell_price: sell, profit_per_unit: profit, account: inp.account, reported_at: now, event: 'conflict-new' });
-    // conflicting price resets confidence to community (fresh disagreement)
+    // conflicting price resets confidence (fresh disagreement) — but a verified
+    // submitter's fresh claim still starts at 'corroborated', same as a new route.
     const newContrib = inp.account ? [...new Set([...contributors, inp.account])] : contributors;
+    const verified = !!inp.rsi_verified && !flaggedNow;
+    const resetConfidence = verified ? 'corroborated' : 'community';
     await query(
       `UPDATE trade_route_submissions
-       SET buy_price=$2, sell_price=$3, profit_per_unit=$4, confidence='community',
+       SET buy_price=$2, sell_price=$3, profit_per_unit=$4, confidence=$9,
            corroboration_count=1, last_verified=now(), updated_at=now(),
            contributor_accounts=$5, price_history=$6, flagged=$7,
-           flag_reason=COALESCE($8, flag_reason)
+           flag_reason=COALESCE($8, flag_reason), rsi_verified=$10, rsi_verified_handle=$11
        WHERE id=$1`,
       [existing.id, buy, sell, profit, JSON.stringify(newContrib), JSON.stringify(history),
-       flaggedNow, flaggedNow ? flagReasons.join('; ') : null],
+       flaggedNow, flaggedNow ? flagReasons.join('; ') : null, resetConfidence,
+       verified, verified ? (inp.rsi_verified_handle ?? null) : null],
     );
     await logEvent({ account: inp.account, client: inp.client, ip: inp.ip, route_key: rkey,
       submission_id: existing.id, action: 'conflict', buy, sell, detail: { superseded: true, reasons: flagReasons } });
     return {
-      id: existing.id, route_key: rkey, outcome: 'conflict-superseded', confidence: 'community', corroboration_count: 1,
+      id: existing.id, route_key: rkey, outcome: 'conflict-superseded', confidence: resetConfidence, rsi_verified: verified, corroboration_count: 1,
       profit_per_unit: profit, last_verified: now, flagged: flaggedNow, flag_reason: flaggedNow ? flagReasons.join('; ') : existing.flag_reason,
       normalization: { commodity, from, to }, history_len: history.length,
-      note: 'Conflicting price reported — previous value preserved in history; confidence reset to "community" pending fresh corroboration.',
+      note: `Conflicting price reported — previous value preserved in history; confidence reset to "${resetConfidence}" pending fresh corroboration.`,
     };
   }
 
@@ -284,7 +308,7 @@ export async function submitTradeRoute(inp: SubmitInput): Promise<SubmitOutcome>
   await logEvent({ account: inp.account, client: inp.client, ip: inp.ip, route_key: rkey,
     submission_id: existing.id, action: 'flag_abuse', buy, sell, detail: { reasons: flagReasons } });
   return {
-    id: existing.id, route_key: rkey, outcome: 'corroborated', confidence: existing.confidence, corroboration_count: existing.corroboration_count,
+    id: existing.id, route_key: rkey, outcome: 'corroborated', confidence: existing.confidence, rsi_verified: !!existing.rsi_verified, corroboration_count: existing.corroboration_count,
     profit_per_unit: existing.profit_per_unit != null ? Number(existing.profit_per_unit) : null,
     last_verified: existing.last_verified, flagged: true, flag_reason: flagReasons.join('; '),
     normalization: { commodity, from, to }, history_len: history.length,

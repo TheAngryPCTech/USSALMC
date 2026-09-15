@@ -18,6 +18,11 @@ async function seedApiKeys() {
     { client: 'desktop', envVar: 'DESKTOP_API_KEY', devToken: 'desktop-dev-key-0001', rate: 120 },
     { client: 'discord', envVar: 'DISCORD_API_KEY', devToken: 'discord-dev-key-0001', rate: 60 },
     { client: 'twitch', envVar: 'TWITCH_API_KEY', devToken: 'twitch-dev-key-0001', rate: 60 },
+    // Distinct from 'wiki': only this client may assert rsi_verified on trade
+    // submissions (see routes.ts) — the portal's gated, RSI-verification-checked
+    // trade-submit path needs its own identity, separate from the shared wiki
+    // key used by the fully anonymous trade-submit app / read-only widgets.
+    { client: 'portal', envVar: 'PORTAL_API_KEY', devToken: 'portal-dev-key-0001', rate: 60 },
   ];
   let usingDevFallback = false;
   for (const c of clients) {

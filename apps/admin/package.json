@@ -12,6 +12,7 @@
     "demo3b": "tsx src/demo3b.ts",
     "build-quests": "tsx src/build-quests.ts",
     "bulk-import": "tsx src/bulk-import.ts",
+    "import-starcitizen-api": "tsx src/import-starcitizen-api.ts",
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {

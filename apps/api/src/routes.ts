@@ -8,6 +8,8 @@ import { hybridSearch } from './search.js';
 import { query } from './db.js';
 import { submitTradeRoute } from './trade-submissions.js';
 import { confirmField, flagField } from './field-signals.js';
+import { getPublicCategories } from './categories-public.js';
+import { submitOrganization } from './organizations.js';
 
 function notFound(reply: any, what: string) {
   return reply.code(404).send({ error: { code: 'not_found', message: what } });
@@ -42,13 +44,15 @@ function serveEntity<T extends { source?: any; edited_by_admin?: boolean }>(ent:
 }
 
 export function registerRoutes(app: FastifyInstance) {
-  // GET /v1/entities?type=&query=&version=&sort=&limit=&offset=
+  // GET /v1/entities?type=&category=&query=&version=&sort=&limit=&offset=
   // sort: 'recent' orders by updated_at desc (newly added + refreshed entities
   // both surface); any other/absent value keeps the default alphabetical order.
+  // category (taxonomy leaf slug, e.g. 'ship'/'commodity') takes priority over
+  // type when both given — see listEntities.
   app.get('/v1/entities', async (req: any) => {
-    const { type, query: q, version, sort, limit, offset } = req.query;
+    const { type, category, query: q, version, sort, limit, offset } = req.query;
     const res = await listEntities({
-      type, queryText: q, version, sort,
+      type, category, queryText: q, version, sort,
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
     });
@@ -124,6 +128,37 @@ export function registerRoutes(app: FastifyInstance) {
     return { count: routes.length, sorted_by: 'profit_per_unit', routes };
   });
 
+  // GET /v1/categories — the entity-bearing category index (with nested
+  // subcategories + entry counts), for the wiki's category index view.
+  // Cached server-side (API_CATEGORIES_CACHE_TTL_SEC); trade_route's
+  // `freshness` is always live regardless of that cache — see categories-public.ts.
+  app.get('/v1/categories', async () => {
+    return { categories: await getPublicCategories() };
+  });
+
+  // POST /v1/organizations/submit — 'portal' client ONLY. An org is added to
+  // the KB exclusively when a member verifies their RSI handle (the portal's
+  // rsi-verify.php calls this right after that check passes) — never bulk-
+  // imported speculatively. Same trust-boundary pattern as trade-routes'
+  // rsi_verified flag: this whole route, not just one field, is client-gated.
+  app.post('/v1/organizations/submit', async (req: any, reply) => {
+    if (req.client !== 'portal') {
+      return reply.code(403).send({ error: { code: 'forbidden', message: 'Organization submission is restricted to the portal client.' } });
+    }
+    const b = req.body ?? {};
+    if (!b.sid || !b.name) {
+      return reply.code(400).send({ error: { code: 'bad_request', message: 'sid and name are required' } });
+    }
+    const entity = await submitOrganization({
+      sid: b.sid, name: b.name,
+      archetype: b.archetype ?? null, commitment: b.commitment ?? null,
+      focus_primary: b.focus_primary ?? null, focus_secondary: b.focus_secondary ?? null,
+      banner: b.banner ?? null, logo: b.logo ?? null, url: b.url ?? null,
+      verified_by_handle: b.verified_by_handle ?? null,
+    });
+    return reply.code(201).send({ id: entity.id, name: entity.name, attributes: entity.attributes });
+  });
+
   // GET /v1/changelog?since=  (recently created/updated entities + patch notes)
   app.get('/v1/changelog', async (req: any) => {
     const since = req.query.since ? new Date(req.query.since) : new Date(Date.now() - 30 * 864e5);
@@ -164,9 +199,17 @@ export function registerRoutes(app: FastifyInstance) {
     const sell = b.sell_price != null ? Number(b.sell_price) : null;
     // `account` is the reporting user/handle (distinct from the API client key).
     const account = (b.account ?? b.submitted_by ?? null) as string | null;
+    // rsi_verified is only ever honored from the 'portal' client — that's the
+    // one caller whose server-side code actually gates this behind a real RSI-
+    // handle ownership check (see apps/wordpress-portal-plugin). Any other
+    // client (including 'wiki', shared by the anonymous trade-submit app)
+    // asserting this flag is ignored outright — it's not a value any other
+    // caller can spend, no matter what it sends.
+    const rsiVerified = req.client === 'portal' && !!b.rsi_verified;
     const outcome = await submitTradeRoute({
       commodity: b.commodity, from_location: b.from_location, to_location: b.to_location,
       buy_price: buy, sell_price: sell, account, client: req.client ?? null, ip: req.ip ?? null,
+      rsi_verified: rsiVerified, rsi_verified_handle: rsiVerified ? (b.rsi_verified_handle ?? account) : null,
     });
     const code = outcome.outcome === 'rate_limited' ? 429 : 201;
     return reply.code(code).send(outcome);
