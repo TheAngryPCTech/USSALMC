@@ -4,7 +4,7 @@ Theme URI: https://ussa.space
 Author: USSALMC
 Author URI: https://ussa.space
 Description: HUD / corporate-portal visual identity for the USSA Lore Master Core (United Space Securities Association). MobiGlas-style diegetic chrome + automotive/tech brand polish. Elementor-compatible: ships an Elementor Global Colors/Typography Kit matching the design tokens so theme-inheriting plugin widgets pick up the palette automatically. Structural language (clipped hex corners, corner-bracket focus, hex-grid + scanline background, hairline borders) lives in this stylesheet. Visual source of truth: reference/corp-portal.html.
-Version: 0.2.0
+Version: 0.2.4
 Requires at least: 6.0
 Requires PHP: 8.0
 License: MIT
@@ -203,7 +203,11 @@ body::after{
 .pilot-tag .rank{ font-size:10px; color:var(--text-faint); font-family:'Space Mono',monospace; }
 
 /* ---------- CONTENT WRAPPER ---------- */
-.content{ flex:1; padding:32px 36px 60px; max-width:1400px; width:100%; }
+/* No max-width: the content area fills all available space beside the rail
+   on any viewport/aspect ratio. Individual prose elements (article, search
+   box, entity hero image) keep their OWN narrower max-width below for
+   readability — only grid/listing containers actually use the full width. */
+.content{ flex:1; padding:32px 36px 60px; width:100%; }
 .page-head{ display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:28px; gap:20px; }
 .page-head h1{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:26px; letter-spacing:0.3px; margin:0; }
 .page-head p{ color:var(--text-dim); font-size:13.5px; margin-top:4px; max-width:46ch; }
@@ -400,7 +404,12 @@ body::after{
 .ussalmc-result__score{ font-family:'Space Mono',monospace; font-size:11px; color:var(--signal); }
 
 /* wiki category view */
-.ussalmc-cats{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; max-width:1000px; }
+/* Wraps the single active category's panel on the filtered listing view (the
+   unfiltered index now renders separately via category-grid.php) — a plain
+   full-width block, NOT a multi-column grid, so that one panel (and its own
+   .ussalmc-entcard__grid inside) can actually use the full available width
+   instead of being sized as one track of a grid meant for several. */
+.ussalmc-cats{ display:block; width:100%; }
 .ussalmc-cat{ background:var(--panel); border:1px solid var(--line); clip-path: var(--clip-panel); padding:18px 20px; }
 .ussalmc-cat h3{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:15px; margin:0 0 6px; }
 .ussalmc-cat .n{ font-family:'Space Mono',monospace; font-size:11px; color:var(--signal); }
@@ -408,8 +417,64 @@ body::after{
 .ussalmc-cat li{ padding:4px 0; font-size:12.5px; border-bottom:1px solid rgba(40,51,63,0.5); }
 .ussalmc-cat li:last-child{ border-bottom:none; }
 
+/* wiki category LISTING — one card per entity (ship, weapon, whatever the
+   active category is). Fills all available width on any viewport/aspect
+   ratio: auto-fill adds/removes columns rather than capping total width. */
+.ussalmc-entcard__grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; width:100%; margin-top:12px; }
+.ussalmc-entcard{
+	display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line);
+	clip-path: var(--clip-panel); text-decoration:none; color:var(--text);
+	transition:border-color .15s, background .15s; overflow:hidden;
+}
+.ussalmc-entcard:hover{ border-color:var(--line-bright); background:var(--panel-raised); }
+.ussalmc-entcard__thumb{ width:100%; aspect-ratio:16/9; object-fit:cover; background:var(--panel-raised); }
+.ussalmc-entcard__thumb--placeholder{
+	display:flex; align-items:center; justify-content:center; font-size:2.2em;
+	font-family:'Aquire','Rajdhani',sans-serif; font-weight:700; color:var(--text-dim);
+}
+.ussalmc-entcard__body{ display:flex; flex-direction:column; gap:8px; padding:12px 14px 14px; }
+.ussalmc-entcard__name{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:14.5px; }
+.ussalmc-entcard__tag{
+	align-self:flex-start; font-family:'Space Mono',monospace; font-size:10px; color:var(--text-dim);
+	border:1px solid var(--line-bright); clip-path: var(--clip-chip); padding:2px 8px;
+}
+.ussalmc-entcard__stats{ display:flex; flex-wrap:wrap; gap:10px; }
+.ussalmc-cat__chip{ font-family:'Space Mono',monospace; font-size:11px; color:var(--signal); white-space:nowrap; }
+
+@media (max-width:600px){
+	.ussalmc-entcard__grid{ grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+}
+
+/* wiki category INDEX view — one card per top-level category */
+.ussalmc-catgrid__grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; width:100%; }
+.ussalmc-catcard{
+	display:flex; flex-direction:column; gap:8px; padding:18px 20px;
+	background:var(--panel); border:1px solid var(--line); clip-path: var(--clip-panel);
+	text-decoration:none; color:var(--text); transition:border-color .15s, background .15s;
+}
+.ussalmc-catcard:hover{ border-color:var(--line-bright); background:var(--panel-raised); }
+.ussalmc-catcard__icon{
+	display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px;
+	background:var(--brand-gradient); clip-path: var(--clip-chip);
+	font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:15px; color:var(--text);
+}
+.ussalmc-catcard__name{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:15px; }
+.ussalmc-catcard__meta{ font-family:'Space Mono',monospace; font-size:11px; color:var(--signal); }
+.ussalmc-catcard__meta--volatile{ color:var(--amber); }
+.ussalmc-catcard__sub{ font-size:11.5px; color:var(--text-faint); }
+
+@media (max-width:720px){
+	.ussalmc-catgrid__grid{ grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
+}
+
 /* Default (non-dashboard) page content inside the shell */
 .ussalmc-page article{ max-width:820px; }
+
+/* per-user trade submission log (inc/trade-log.php) */
+.ussalmc-trade-count{ font-family:'Space Mono',monospace; font-size:12px; color:var(--signal); }
+.ussalmc-trade-history{ width:100%; border-collapse:collapse; margin-top:10px; font-size:12.5px; }
+.ussalmc-trade-history th{ text-align:left; font-family:'Space Mono',monospace; font-size:10.5px; color:var(--text-faint); padding:6px 8px; border-bottom:1px solid var(--line-bright); }
+.ussalmc-trade-history td{ padding:6px 8px; border-bottom:1px solid rgba(40,51,63,0.5); color:var(--text-dim); }
 .ussalmc-page h1{ font-family:'Aquire','Rajdhani',sans-serif; font-weight:600; font-size:24px; }
 .ussalmc-content{ font-size:14px; line-height:1.7; color:var(--text-dim); }
 

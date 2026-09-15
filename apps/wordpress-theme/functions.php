@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'USSALMC_THEME_VERSION', '0.2.0' );
+define( 'USSALMC_THEME_VERSION', '0.2.4' );
 
 require_once get_stylesheet_directory() . '/inc/elementor-kit.php';
 require_once get_stylesheet_directory() . '/inc/dashboard.php';

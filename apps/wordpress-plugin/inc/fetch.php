@@ -91,21 +91,85 @@ function ussalmc_wiki_entity_relations( string $id ) {
 }
 
 /**
- * Category index derived from the entity corpus (attributes.category), since the
- * public /v1 surface groups entities by that field. Returns [ category => [entities] ].
+ * ALL entities in one category, via GET /v1/entities?category=<slug>&offset=,
+ * paging past the API's own per-request cap (200 — see listEntities) so a
+ * category with more than 200 entities (manufacturer: 246) still returns its
+ * full list instead of silently stopping at page 1. Bounded to
+ * USSALMC_CATEGORY_LISTING_MAX_PAGES pages as a sanity cap, not a UX limit.
  */
-function ussalmc_wiki_categories( int $limit = 200 ) {
-	$list = ussalmc_wiki_list_entities( array( 'type' => 'item', 'limit' => $limit ) );
-	if ( is_wp_error( $list ) ) {
-		return $list;
+function ussalmc_wiki_fetch_all_in_category( string $slug, int $page_size = 200 ) {
+	$items = array();
+	$offset = 0;
+	$max_pages = 25; // 25 * 200 = 5,000 entities — comfortably above any real category today.
+	for ( $page = 0; $page < $max_pages; $page++ ) {
+		$res = ussalmc_wiki_api_get( '/v1/entities?category=' . rawurlencode( $slug ) . '&limit=' . $page_size . '&offset=' . $offset );
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+		$batch = $res['items'] ?? array();
+		foreach ( $batch as $e ) {
+			$images = is_array( $e['images'] ?? null ) ? $e['images'] : array();
+			$thumb  = null;
+			foreach ( $images as $img ) {
+				if ( ( $img['role'] ?? '' ) === 'primary' && ! empty( $img['url'] ) ) {
+					$thumb = $img['url'];
+					break;
+				}
+			}
+			if ( ! $thumb && ! empty( $images[0]['url'] ) ) {
+				$thumb = $images[0]['url'];
+			}
+			$items[] = array(
+				'id'         => $e['id'] ?? '',
+				'name'       => $e['name'] ?? ( $e['id'] ?? '' ),
+				'category'   => $slug,
+				'attributes' => is_array( $e['attributes'] ?? null ) ? $e['attributes'] : array(),
+				'thumb'      => $thumb,
+			);
+		}
+		$total  = (int) ( $res['total'] ?? count( $items ) );
+		$offset += count( $batch );
+		if ( empty( $batch ) || $offset >= $total ) {
+			break;
+		}
 	}
-	$cats = array();
-	foreach ( $list['items'] ?? array() as $e ) {
-		$cat = ( $e['attributes']['category'] ?? '' ) ?: 'uncategorized';
-		$cats[ $cat ][] = array( 'id' => $e['id'] ?? '', 'name' => $e['name'] ?? ( $e['id'] ?? '' ) );
+	return $items;
+}
+
+/**
+ * Entities in ONE category (plus any of its subcategories, so they stay
+ * nested in the same listing rather than needing their own view), for the
+ * [ussalmc_categories] `?category=` filtered listing. Fetches by
+ * GET /v1/entities?category=<slug> — the taxonomy leaf filter, which matches
+ * attributes.category when set, else base type. This replaces the old
+ * approach of fetching only type=item entities and grouping client-side,
+ * which silently returned nothing for any category whose entities live under
+ * a different base type (commodity, location, quest, npc, ...).
+ * Returns [ category_slug => [entities] ] (kept as a dict, same shape the
+ * category.php template already expects) or a WP_Error.
+ */
+function ussalmc_wiki_categories( string $active ) {
+	$slugs = array( $active );
+	$index = ussalmc_wiki_category_index();
+	if ( ! is_wp_error( $index ) ) {
+		foreach ( $index as $c ) {
+			if ( $c['slug'] === $active ) {
+				foreach ( $c['subcategories'] ?? array() as $sub ) {
+					$slugs[] = $sub['slug'];
+				}
+				break;
+			}
+		}
 	}
-	ksort( $cats );
-	return array( 'total' => (int) ( $list['total'] ?? 0 ), 'categories' => $cats );
+	$items = array();
+	foreach ( $slugs as $slug ) {
+		$batch = ussalmc_wiki_fetch_all_in_category( $slug );
+		if ( is_wp_error( $batch ) ) {
+			return $batch;
+		}
+		array_push( $items, ...$batch );
+	}
+	return array( 'total' => count( $items ), 'categories' => array( $active => $items ) );
 }
 
 /**
@@ -116,4 +180,107 @@ function ussalmc_wiki_confidence( array $entity ): string {
 	$c = $entity['confidence'] ?? ( $entity['source']['confidence'] ?? '' );
 	$c = strtolower( trim( (string) $c ) );
 	return $c !== '' ? $c : 'unknown';
+}
+
+/**
+ * Top-level category index (with nested subcategories + entry counts,
+ * trade_route's own freshness): GET /v1/categories. Powers the
+ * [ussalmc_categories] index card grid.
+ */
+function ussalmc_wiki_category_index() {
+	$res = ussalmc_wiki_api_get( '/v1/categories' );
+	if ( is_wp_error( $res ) ) {
+		return $res;
+	}
+	return $res['categories'] ?? array();
+}
+
+/**
+ * Human-readable freshness label for a trade_route category card's
+ * `freshness` (`{last_verified, last_verified_age_minutes}` or null — no
+ * confirmed trade routes yet). Trade data is always shown with its age,
+ * never presented as a current fact without it, per the cross-phase rule.
+ */
+function ussalmc_wiki_freshness_label( $freshness ): string {
+	$age = $freshness['last_verified_age_minutes'] ?? null;
+	if ( $age === null ) {
+		return 'No confirmed data yet';
+	}
+	$age = (int) $age;
+	if ( $age < 60 ) {
+		return 'Updated ' . $age . 'm ago';
+	}
+	if ( $age < 1440 ) {
+		return 'Updated ' . round( $age / 60 ) . 'h ago';
+	}
+	return 'Updated ' . round( $age / 1440 ) . 'd ago';
+}
+
+/**
+ * Which attribute keys are worth showing as inline stat chips on a category
+ * listing row, per category — and how to label/format them. Only ever reads
+ * real attribute values already on the entity; a category/key with no
+ * mapping here just shows no chips (never a fabricated placeholder).
+ */
+function ussalmc_wiki_category_stat_chip_spec( string $category ): array {
+	$specs = array(
+		'ship'         => array(
+			array( 'key' => 'cargo_capacity', 'label' => 'Cargo', 'unit' => ' SCU' ),
+			array( 'key' => 'price_usd', 'label' => 'Price', 'prefix' => '$' ),
+			array( 'key' => 'production_status', 'label' => 'Status' ),
+		),
+		'weapon'       => array(
+			array( 'key' => 'damage', 'label' => 'Damage' ),
+			array( 'key' => 'dps', 'label' => 'DPS' ),
+			array( 'key' => 'fire_rate', 'label' => 'Fire rate' ),
+		),
+		'commodity'    => array(
+			array( 'key' => 'type', 'label' => 'Type' ),
+			array( 'key' => 'rarity', 'label' => 'Rarity' ),
+		),
+		'manufacturer' => array(
+			array( 'key' => 'industry', 'label' => 'Industry' ),
+			array( 'key' => 'headquarters', 'label' => 'HQ' ),
+		),
+		'location'     => array(
+			array( 'key' => 'type', 'label' => 'Type' ),
+			array( 'key' => 'affiliation', 'label' => 'Affiliation' ),
+		),
+		'star_system'  => array(
+			array( 'key' => 'danger', 'label' => 'Danger' ),
+			array( 'key' => 'economy', 'label' => 'Economy' ),
+			array( 'key' => 'population', 'label' => 'Population' ),
+		),
+		'jump_point'   => array(
+			array( 'key' => 'size', 'label' => 'Size' ),
+			array( 'key' => 'entry_code', 'label' => 'From' ),
+			array( 'key' => 'exit_code', 'label' => 'To' ),
+		),
+		'organization' => array(
+			array( 'key' => 'archetype', 'label' => 'Type' ),
+			array( 'key' => 'commitment', 'label' => 'Commitment' ),
+		),
+		'roadmap'      => array(
+			array( 'key' => 'status', 'label' => 'Status' ),
+			array( 'key' => 'release', 'label' => 'Release' ),
+		),
+	);
+	return $specs[ $category ] ?? array();
+}
+
+/** Build the actual chip list for one entity's attributes — skips anything missing/empty. */
+function ussalmc_wiki_category_stat_chips( string $category, array $attributes ): array {
+	$chips = array();
+	foreach ( ussalmc_wiki_category_stat_chip_spec( $category ) as $spec ) {
+		$value = $attributes[ $spec['key'] ] ?? null;
+		if ( $value === null || $value === '' ) {
+			continue;
+		}
+		if ( is_bool( $value ) ) {
+			$value = $value ? 'Yes' : 'No';
+		}
+		$formatted = ( $spec['prefix'] ?? '' ) . ( is_numeric( $value ) ? number_format( (float) $value, fmod( (float) $value, 1 ) === 0.0 ? 0 : 2 ) : (string) $value ) . ( $spec['unit'] ?? '' );
+		$chips[] = array( 'label' => $spec['label'], 'value' => $formatted );
+	}
+	return $chips;
 }
