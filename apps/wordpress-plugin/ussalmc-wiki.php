@@ -3,7 +3,7 @@
  * Plugin Name:       USSALMC Wiki
  * Plugin URI:        https://api.ussa.space
  * Description:       Star Citizen wiki consumer for the USSA Lore Master Core. Reads entities from the core REST API (versioned /v1) using a server-side Bearer key and renders entity cards, hybrid search, and category views via shortcodes. Output goes through a theme template-override system, so an active theme can restyle it with no plugin changes. Never exposes the API key to the browser.
- * Version:           0.3.0
+ * Version:           0.3.3
  * Requires PHP:      8.0
  * Author:            USSALMC
  * License:           MIT
@@ -131,11 +131,27 @@ add_shortcode( 'ussalmc_search', function ( $atts ) {
 
 /**
  * [ussalmc_categories] — category index of the knowledge base.
- * Honors ?category= to filter to one category. Rendered via templates/category.php.
+ *
+ * No ?category= -> the INDEX view: one card per top-level category (entry
+ * count, subcategory count, trade_route's own freshness), from GET
+ * /v1/categories. Rendered via templates/category-grid.php.
+ *
+ * ?category=<slug> -> the existing per-category LISTING view, unchanged:
+ * entities in that category, rendered via templates/category.php. Clicking
+ * an index card links here — same listing mechanism, not a second one.
  */
 add_shortcode( 'ussalmc_categories', function () {
-	$data   = ussalmc_wiki_categories();
 	$active = isset( $_GET['category'] ) ? sanitize_text_field( wp_unslash( $_GET['category'] ) ) : null;
+
+	if ( ! $active ) {
+		$categories = ussalmc_wiki_category_index();
+		if ( is_wp_error( $categories ) ) {
+			return ussalmc_wiki_render_template( 'category-grid', array( 'categories' => array(), 'error' => $categories->get_error_message() ) );
+		}
+		return ussalmc_wiki_render_template( 'category-grid', array( 'categories' => $categories, 'error' => null ) );
+	}
+
+	$data = ussalmc_wiki_categories( $active );
 	if ( is_wp_error( $data ) ) {
 		return ussalmc_wiki_render_template( 'category', array( 'categories' => array(), 'total' => 0, 'error' => $data->get_error_message(), 'active' => $active ) );
 	}

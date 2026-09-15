@@ -26,6 +26,10 @@ export const config = {
     port: parseInt(req('API_PORT', '3000'), 10),
     host: req('API_HOST', '127.0.0.1'),
     tradeRouteCacheTtlSec: parseInt(req('API_TRADE_ROUTE_CACHE_TTL_SEC', '15'), 10),
+    // Category index (GET /v1/categories) is non-volatile (unlike trade routes)
+    // so it gets a much longer server-side cache; only the trade_route card's
+    // own freshness value is recomputed on every request regardless of this TTL.
+    categoriesCacheTtlSec: parseInt(req('API_CATEGORIES_CACHE_TTL_SEC', '300'), 10),
   },
   scraper: {
     userAgent: req('SCRAPER_USER_AGENT', 'USSALMC-Bot/0.1 (+respect-robots)'),

@@ -40,13 +40,21 @@ export async function getEntity(id: string): Promise<Entity | null> {
 }
 
 export async function listEntities(opts: {
-  type?: string; queryText?: string; version?: string; limit?: number; offset?: number;
+  type?: string; category?: string; queryText?: string; version?: string; limit?: number; offset?: number;
   includeRemoved?: boolean; sort?: string;
 }): Promise<{ items: Entity[]; total: number }> {
   const where: string[] = [];
   const params: any[] = [];
   if (!opts.includeRemoved) where.push(`status <> 'removed'`);
-  if (opts.type) { params.push(opts.type); where.push(`type = $${params.length}`); }
+  // category is the finer-grained taxonomy leaf slug (matches the `categories`
+  // table / GET /v1/categories: attributes.category when set, else base type —
+  // e.g. category=ship selects type=item rows with attributes.category='ship',
+  // category=commodity selects type=commodity rows directly). Takes priority
+  // over `type` when both are given, since it's the more specific filter.
+  if (opts.category) {
+    params.push(opts.category);
+    where.push(`COALESCE(attributes->>'category', type) = $${params.length}`);
+  } else if (opts.type) { params.push(opts.type); where.push(`type = $${params.length}`); }
   if (opts.version) { params.push(opts.version); where.push(`game_version = $${params.length}`); }
   if (opts.queryText) {
     params.push(`%${opts.queryText.toLowerCase()}%`);
