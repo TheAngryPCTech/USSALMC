@@ -172,8 +172,13 @@ part of this same compose stack and network (`ussalmc`), private (127.0.0.1:8093
     `style.css` mirrored into the Elementor Global Kit; wiki template overrides in
     `ussalmc-wiki/`; brand assets in `assets/`; visual source of truth kept at
     `reference/corp-portal.html`.
-  - `ussalmc-portal` 0.2.0 — three real Elementor widgets (Market, Stat Readout,
-    Module Grid) reading the core API, palette inherited from the Kit.
+  - `ussalmc-portal` 0.3.0 — three real Elementor widgets (Market, Stat Readout,
+    Module Grid) reading the core API, palette inherited from the Kit. All three
+    are gated on RSI-handle verification (`[ussalmc_register]`/`[ussalmc_verify]`,
+    checked against StarCitizen-API, a separate ToS-permitted third-party service
+    — never robertsspaceindustries.com directly) — an account isn't fully active
+    until it passes. Key = `STARCITIZEN_API_KEY`, wired the same way as
+    `WIKI_API_KEY` (see below).
   - `ussalmc-wiki` 0.2.0 — entity cards + hybrid search + category views via a
     theme template-override system.
   - Fleet / Contracts / Personnel / Comms are static SAMPLE placeholder panels
@@ -222,6 +227,31 @@ part of this same compose stack and network (`ussalmc`), private (127.0.0.1:8093
   (WP admin, set at install), and `USSALMC_API_BASE` (`http://api:3000`; the wiki
   plugin's key is `WIKI_API_KEY`, reused). All in `.env` + documented in `.env.example`.
 - `.env.example` documents every var with placeholders + a key-generation hint.
+- `STARCITIZEN_API_KEY` (Phase 10) — a StarCitizen-API (starcitizen-api.com)
+  account key, obtained via Discord login on their site (not something this repo
+  can provision). Used only by the portal plugin's RSI-handle verification.
+  GOTCHA: setting it in `.env` alone does nothing by itself — like `WIKI_API_KEY`,
+  it has to flow through to a WP **option** (`ussalmc_starcitizen_api_key`), which
+  only happens via the `wordpress-cli` bootstrap container reading it from
+  `docker-compose.yml`'s `environment:` block and running `wp option update` in
+  `wp-init.sh`. On an already-provisioned instance (bootstrap already ran once),
+  changing `.env` requires either re-running
+  `docker compose run --rm wordpress-cli` or setting the option directly
+  (`wp option update ussalmc_starcitizen_api_key "<key>"`).
+- `PORTAL_API_KEY` (Phase 10) — a dedicated core-API client key for the portal
+  plugin's gated trade submission (`[ussalmc_trade_submit]`), separate from
+  `WIKI_API_KEY`. `POST /v1/trade-routes/submit` only honors `rsi_verified`
+  from this client, so it can't be spoofed by any other caller (including the
+  standalone trade-submit app, which reuses the wiki key and stays anonymous).
+  Same `<client>_<48hex>` format; seeded into `api_keys` via
+  `db/migrations/0012_portal_api_key_client.sql` (adds `portal` to the allowed
+  `client` values) — the `api_keys` row itself has to be inserted once
+  (`INSERT ... ON CONFLICT (client) DO UPDATE`, same shape `seedApiKeys()` in
+  `db/seed/seed.ts` uses; **don't** run the full seed script against a live DB
+  to add this one row — it also re-upserts the Phase 1 example entities, which
+  would stomp real scraped data for any of those same IDs). Same wp_options
+  wiring gotcha as `STARCITIZEN_API_KEY` above: flows through
+  `wordpress-cli`/`wp-init.sh` into option `ussalmc_portal_trade_api_key`.
 
 ## Admin authentication (DB-backed, migration 0004 `admin_users`, roles added 0007)
 - Session-cookie login (NOT the API bearer keys). Bootstrap account from
@@ -285,12 +315,41 @@ ussalmc-theme active, 1 demo page (`?page_id=5`) using the wiki shortcode.
 - [ ] Rotate the host sudo password (it appeared in a build-session chat).
 - [ ] Phase 5 candidates: Discord bot + Twitch bot (`apps/bots/*`, discord.js /
       tmi.js) using DISCORD_API_KEY / TWITCH_API_KEY; WordPress/wiki consumer.
-- [ ] **Resume the Phase 9 initial force-overwrite import** — paused at the
-      500/day fetch cap partway through `manufacturer` (see decisions-log).
-      Re-run from `apps/admin` inside the admin container:
+- [ ] **Resume the Phase 9 initial force-overwrite import** — `ship` (236) and
+      `manufacturer` (246) are actually fully processed (confirmed via
+      `bulk_import_progress`, 2026-09-08); the job is paused at the 500/day
+      fetch cap **before starting** `weapon`/`location`/`commodity`, not
+      "partway through manufacturer" as this note previously said. Re-run
+      from `apps/admin` inside the admin container:
       `npm run bulk-import -- --force-overwrite --categories=ship,manufacturer,weapon,location,commodity --job-key=initial_force_pull --max-per-category=500`
-      (same `job_key` resumes; safe to re-run daily until `bulk_import_jobs.status='done'`).
+      (same `job_key` resumes, skipping ship/manufacturer since they're
+      already done; safe to re-run daily until `bulk_import_jobs.status='done'`).
       This is a one-time flag for this initial pull only — do not add
       `--force-overwrite` to any scheduled/cron invocation.
+- [ ] **Resume the manufacturer image backfill** (`job_key=manufacturer_image_backfill`,
+      started 2026-09-08 to pick up the SVG-image fix below) — also paused at
+      the shared 500/day fetch cap (0 of 313 pages processed so far; the cap
+      is a rolling 24h window shared across every bulk-import job_key, and
+      yesterday's `initial_force_pull` run had already used all 500). Re-run
+      from `apps/admin` inside the admin container:
+      `npm run bulk-import -- --force-overwrite --categories=manufacturer --job-key=manufacturer_image_backfill --max-per-category=500`
+      until `status='done'`.
+      A **reminder-only** systemd `--user` timer is installed on the host
+      (`ussalmc-bulk-import-reminder.timer`, daily 09:00 America/Chicago,
+      runs `scripts/check-bulk-import-status.sh`) — it checks
+      `bulk_import_jobs.status` for **both** job keys above and nudges
+      (desktop notification + `wall` + `~/.local/state/ussalmc-bulk-import-reminder.log`)
+      with the exact resume command for whichever is still paused; it never
+      runs bulk-import itself, per the no-cron-force-overwrite rule above.
+      Self-disables once both report `status='done'`. Not part of the repo's
+      deployed containers — host-level only, so it doesn't survive a host
+      rebuild; re-run `systemctl --user enable --now ussalmc-bulk-import-reminder.timer`
+      (units live in `~/.config/systemd/user/`) if this host is ever recreated.
+- [x] ~~Image extraction silently skipped SVG-only infobox images (all 246
+      manufacturer logos)~~ — fixed 2026-09-08, see decisions-log. Rebuilt +
+      redeployed the `admin` container (code isn't bind-mounted). `weapon` and
+      `location` don't have saved templates yet (bulk-import hasn't reached
+      them) so they'll pick up the fix automatically on first build; no
+      backfill needed for those two.
 - [x] ~~Give admin its own TLS domain~~ — done in Phase 7 (admin.ussa.space,
       COOKIE_SECURE=true), needed to make the SSO iframe actually work.

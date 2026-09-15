@@ -38,11 +38,13 @@ Codes: `unauthorized` (401, missing key), `invalid_key` (401, unknown/disabled),
 
 ## Entities
 ### `GET /v1/entities`
-Query params: `type`, `query` (substring on name/summary), `version`
-(game_version), `sort` (`recent` orders by `updated_at` desc — covers both
-newly-added entities and existing ones refreshed by a later connector run or
-admin edit; any other/absent value keeps the default alphabetical-by-name
-order), `limit` (≤200, default 50), `offset`.
+Query params: `type`, `category` (taxonomy leaf slug from `GET /v1/categories`,
+e.g. `ship`/`commodity` — matches `attributes.category` when set, else base
+`type`; takes priority over `type` when both are given), `query` (substring on
+name/summary), `version` (game_version), `sort` (`recent` orders by
+`updated_at` desc — covers both newly-added entities and existing ones
+refreshed by a later connector run or admin edit; any other/absent value keeps
+the default alphabetical-by-name order), `limit` (≤200, default 50), `offset`.
 → `{ "total": N, "items": [ <entity>, ... ] }`
 
 ### `GET /v1/entities/:id`
@@ -96,6 +98,39 @@ Optional `limit` (default 10). Scores combined 0.4·keyword + 0.6·semantic.
       "results": [ { "id", "name", "type", "summary",
                      "keyword_score", "semantic_score", "score" }, ... ] }
 
+## Categories
+### `GET /v1/categories`
+The public category index that powers the wiki's `[ussalmc_categories]` index
+card grid (one card per top-level, entity-bearing category — Ship, Weapon,
+Manufacturer, Location, Trade route, ...). Built over the same `categories`
+taxonomy table the admin category manager uses (migration `0005`), but
+reshaped for public consumers: the admin tree's `is_group=true` root nodes
+(Vehicles, Organizations, Equipment, World, Gameplay, Lore & Meta) are
+internal-organization-only labels and never appear here — the entity-bearing
+leaf categories directly under a group are promoted to be the top-level
+entries returned. Any admin-created category nested under one of *those*
+(a real subcategory) stays nested in `subcategories`.
+
+    { "categories": [
+        { "slug", "display_name", "description",
+          "entry_count": <int|null>,       // count of public (non-removed) entities; null for trade_route
+          "subcategory_count": <int>,       // direct children only, via subcategories.length
+          "subcategories": [ <same shape>, ... ],
+          "freshness": { "last_verified", "last_verified_age_minutes" } | null   // set only for trade_route
+        }, ... ] }
+
+`trade_route` is the one volatile exception (per the cross-phase rule: trade
+data always surfaces its own current freshness instead of being presented as
+a flat, undated fact) — it reports `entry_count: null` and a `freshness`
+object (most recent `last_verified` across **confirmed** rows in
+`trade_route_submissions`, matching `GET /v1/trade-routes`'s own filter)
+instead of a count.
+
+Tree shape + entry counts are cached in-process for
+`API_CATEGORIES_CACHE_TTL_SEC` (default 300s) since they're non-volatile;
+`trade_route`'s `freshness` is recomputed on every call regardless of that
+cache, the same volatile-data treatment `GET /v1/trade-routes` gets.
+
 ## Trade routes (volatile)
 Responses set `Cache-Control: no-cache, max-age=<API_TRADE_ROUTE_CACHE_TTL_SEC>`
 and always surface `last_verified` + `last_verified_age_minutes`.
@@ -110,7 +145,7 @@ Returns **confirmed** routes only, sorted by `profit_per_unit` descending.
                     "freshness_class": "volatile", "volatile_warning" }, ... ] }
 
 ### `POST /v1/trade-routes/submit`
-Body: `{ commodity, from_location, to_location, buy_price?, sell_price?, account? }`
+Body: `{ commodity, from_location, to_location, buy_price?, sell_price?, account?, rsi_verified?, rsi_verified_handle? }`
 (`account` = the reporting user/handle, distinct from the API client key; also
 accepts `submitted_by` as an alias). Runs the submission-intelligence engine
 (`apps/api/src/trade-submissions.ts`):
@@ -119,12 +154,29 @@ accepts `submitted_by` as an alias). Runs the submission-intelligence engine
   same token-overlap matcher as the Phase 2 linker) — no duplicate entities are
   created; unmatched names are kept as text.
 - Defaults new routes to **`community`** confidence — never `confirmed`.
+- **`rsi_verified`** (Phase 10): only honored when the caller authenticates as
+  the **`portal`** API client — any other client (including `wiki`, shared by
+  the anonymous trade-submit app) sending this flag has it silently ignored,
+  so it can't be spoofed by simply setting a field. Set by the WordPress
+  portal's `[ussalmc_trade_submit]` (`apps/wordpress-portal-plugin/inc/trade-submit.php`,
+  gated on RSI-handle ownership verification — see `docs/deployment.md`) after
+  its own check passes. A new
+  route from a verified submitter starts at **`corroborated`** confidence
+  instead of `community` (never past `confirmed`, never when the submission
+  is itself flagged/abusive); a conflicting-price resubmission from a
+  verified account likewise resets to `corroborated` rather than `community`.
+  The row also records `rsi_verified` (bool) and `rsi_verified_handle`
+  (`db/migrations/0011_trade_route_verified_submitter.sql`) for transparency —
+  an existing route's `rsi_verified` flips to `true` (and stays true) the
+  first time any verified account corroborates it, even if it started
+  anonymous.
 - **Auto-corroborates**: an independent account reporting a matching price
   (within `TRADE_PRICE_TOLERANCE`, inside `TRADE_CORROBORATION_WINDOW_MIN`)
   steps confidence up (`community`→`corroborated`→`confirmed`) and refreshes
   `last_verified`.
 - **Preserves history**: a conflicting price supersedes the current value but
-  archives the old one in `price_history`; confidence resets to `community`.
+  archives the old one in `price_history`; confidence resets to `community`
+  (or `corroborated` — see `rsi_verified` above).
 - **Rate-limits** per account (`TRADE_RATE_LIMIT_PER_MIN`) → 429; **flags**
   abuse (implausible prices, sell<buy, self-corroboration) for manual review
   instead of trusting volume.
@@ -132,7 +184,7 @@ accepts `submitted_by` as an alias). Runs the submission-intelligence engine
 Response (201, or 429 when rate-limited):
 
     { id, route_key, outcome: "created"|"corroborated"|"conflict-superseded"|"rate_limited",
-      confidence, corroboration_count, profit_per_unit, last_verified,
+      confidence, rsi_verified, corroboration_count, profit_per_unit, last_verified,
       flagged, flag_reason,
       normalization: { commodity:{input,canonical,entity_id,decision,score}, from:{...}, to:{...} },
       history_len, note }
@@ -141,6 +193,25 @@ Response (201, or 429 when rate-limited):
 Explicit vouch: increments `confirmations`, sets `status='confirmed'` and
 `confidence='confirmed'`, bumps `last_verified`, logs a `confirm` event. Body
 `{ account? }`. → updated row `{ id, status, confidence, confirmations, corroboration_count, last_verified, flagged }`, or 404.
+
+## Organizations
+### `POST /v1/organizations/submit`
+**`portal` client only** — every other client gets `403`, not just a
+distrusted flag (unlike `rsi_verified` on trade submissions, which is a field-
+level restriction on an otherwise-open route, this whole route is closed to
+non-portal clients). Called by the portal's `[ussalmc_verify]` flow
+(`apps/wordpress-portal-plugin/inc/rsi-verify.php`) immediately after a
+member's RSI-handle bio check succeeds — an org is added to the knowledge
+base **only** via this trigger, never by speculative bulk import (see
+`apps/admin/src/import-starcitizen-api.ts`, which deliberately skips orgs).
+
+Body: `{ sid, name, archetype?, commitment?, focus_primary?, focus_secondary?, banner?, logo?, url?, verified_by_handle? }`.
+Deliberately narrow — never accepts or stores an org's charter/manifesto/
+headline text (member-authored prose) or its member roster (other members'
+identities); both are out of scope for a lore knowledge base. Upserts
+`item_org_<slug(sid)>` (type `item`, `attributes.category: "organization"`),
+`source.confidence: "community"` (a member's self-reported verification
+event, not an admin-reviewed scrape). → `201 { id, name, attributes }`.
 
 ## Changelog
 ### `GET /v1/changelog?since=<ISO date>`

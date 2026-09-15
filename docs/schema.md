@@ -67,9 +67,14 @@ to the `type` CHECK constraint via a new migration and log the decision.)
 - ivfflat cosine index on `vector`.
 
 ## `api_keys` table
-Per-client keys (`wiki`, `mobile`, `desktop`, `discord`, `twitch`). Stores a
-SHA-256 hash of the bearer token, a per-client `rate_limit_per_min`, and an
-`enabled` flag. Tokens are never stored in plaintext.
+Per-client keys (`wiki`, `mobile`, `desktop`, `discord`, `twitch`, `portal` —
+migration `0012_portal_api_key_client.sql`). Stores a SHA-256 hash of the
+bearer token, a per-client `rate_limit_per_min`, and an `enabled` flag. Tokens
+are never stored in plaintext. `portal` is deliberately distinct from `wiki`:
+it's the only client `POST /v1/trade-routes/submit` trusts to assert
+`rsi_verified` (see below) — keeping the RSI-verification-gated WordPress
+portal path distinguishable from the shared `wiki` key, which the fully
+anonymous trade-submit app also uses.
 
 ## `api_audit_log` table
 One row per authenticated `/v1` request: `client`, `api_key_id`, `method`,
@@ -100,12 +105,28 @@ Submission intelligence columns added to the same table:
 | commodity_entity_id / from_entity_id / to_entity_id | TEXT | normalized links to existing entities (null if no confident match — no duplicate entity is created) |
 | route_key            | TEXT    | normalized `commodity|from|to` used to group corroborating reports |
 
-Confidence ladder rules: a new route starts `community`; an independent report
-with a matching price (within `TRADE_PRICE_TOLERANCE`) inside
-`TRADE_CORROBORATION_WINDOW_MIN` steps it up and refreshes `last_verified`; a
-conflicting price supersedes the current value (archiving the old one to
-`price_history`) and resets confidence to `community`; an explicit
-`/confirm` sets `confirmed`.
+Confidence ladder rules: a new route starts `community` (or `corroborated` for
+a verified submitter — see below); an independent report with a matching
+price (within `TRADE_PRICE_TOLERANCE`) inside `TRADE_CORROBORATION_WINDOW_MIN`
+steps it up and refreshes `last_verified`; a conflicting price supersedes the
+current value (archiving the old one to `price_history`) and resets
+confidence to `community` (or `corroborated` for a verified submitter); an
+explicit `/confirm` sets `confirmed`.
+
+### Phase 10 additions (migration `0011_trade_route_verified_submitter.sql`)
+
+| field                | type    | notes |
+|----------------------|---------|-------|
+| rsi_verified         | BOOL    | `true` if this route's data came from (or was ever corroborated by) an RSI-handle-verified WordPress account, via the portal's gated `[ussalmc_trade_submit]`. Default `false`. Sticky — once set `true` it never reverts to `false`. |
+| rsi_verified_handle  | TEXT    | the verified RSI handle responsible, when `rsi_verified=true`; `null` otherwise |
+
+A verified submitter's report starts a **new** route at `corroborated`
+confidence (skipping the anonymous `community` stage — we already know it's a
+real, specific citizen) and resets a **conflicting** report to `corroborated`
+too, rather than `community`. This is purely additive metadata for
+transparency (per the cross-phase rule: never present something as more
+trustworthy than it actually is without saying why) — it does not add a new
+confidence-ladder value.
 
 ### `trade_submission_events` table (Phase 3)
 Per-account audit for rate limiting + abuse detection:
@@ -311,6 +332,30 @@ every confirm/flag to `wp_get_current_user()->user_login` when logged in, else
 the literal string `'anonymous'` — never a client-supplied value the browser
 could forge as someone else's identity (WordPress's own session determines it
 server-side, in the AJAX handler, not from anything the request body claims).
+
+## Phase 10 — StarCitizen-API import (no schema migration; new `categories` rows only)
+
+New leaf categories (plain data rows, same mechanism the admin category
+manager already uses — no migration needed): `organization` (under
+`grp_organizations`), `star_system` / `jump_point` (under `grp_world`),
+`species` / `affiliation` / `roadmap` (under `grp_meta`). All content comes
+from the community StarCitizen-API (`https://starcitizen-api.com`), never
+from fetching `robertsspaceindustries.com` directly — see `docs/api.md`'s
+Organizations section and `apps/admin/src/import-starcitizen-api.ts`.
+
+| category      | base `type`  | id scheme                          | source |
+|----------------|--------------|--------------------------------------|--------|
+| `star_system`  | `location`   | `location_<slug(name)>`              | bulk import (`--systems`) |
+| `jump_point`   | `location`   | `location_jump_<sc_api_id>`          | bulk import (`--tunnels`); `relations` (`connects_from`/`connects_to`) reference the two endpoint `star_system` entities, resolved via each system's `attributes.sc_api_id` |
+| `species`      | `lore`       | `lore_species_<slug(name)>`          | bulk import (`--species`) |
+| `affiliation`  | `lore`       | `lore_affiliation_<slug(name)>`      | bulk import (`--affiliations`) |
+| `roadmap`      | `patch_note` | `patch_note_roadmap_<slug(name)>_<sc_api_id>` | bulk import (`--roadmap`) — CIG's public dev roadmap, distinct from actual shipped `patch_note` entries which share the same base `type` |
+| `ship`         | `item`       | *(existing `ship_*` ids, unchanged)* | `--ships` **enriches** existing wiki-scraped ship entities' `attributes` (mass, dimensions, crew, price, production_status, etc.) by normalized-name match — never creates a new ship entity on a miss |
+| `organization` | `item`       | `item_org_<slug(sid)>`               | **not** bulk-imported — only ever created via `POST /v1/organizations/submit`, triggered exclusively by a member's successful RSI-handle verification (see `docs/api.md`) |
+
+`import-starcitizen-api.ts` uses `mode=cache` exclusively (unlimited per the
+API's own docs) — none of this competes with the portal's `live`/`eager`
+verification-check quota (1000/day, shared across the whole site).
 
 ## Phase 9 tables — connector force-overwrite import (migration `0010_force_overwrite_import.sql`)
 
