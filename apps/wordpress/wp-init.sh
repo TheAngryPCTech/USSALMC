@@ -99,6 +99,14 @@ else
 	echo "[wp-init] NOTE: PORTAL_API_KEY not set — gated trade submission will be disabled."
 fi
 
+# --- Portal plugin -> UEX Corp (commodity price ticker) --------------------
+if [ -n "${UEX_API_KEY:-}" ]; then
+	wp option update ussalmc_uex_api_key "${UEX_API_KEY}" $FLAGS
+	echo "[wp-init] portal commodity ticker configured (UEX API key set)."
+else
+	echo "[wp-init] NOTE: UEX_API_KEY not set — commodity ticker will be disabled."
+fi
+
 # --- SSO handoff config (wp-admin "USSA Admin" menu -> the admin tool) ------
 if [ -n "${ADMIN_SSO_SECRET:-}" ]; then
 	wp option update ussalmc_sso_secret "${ADMIN_SSO_SECRET}" $FLAGS

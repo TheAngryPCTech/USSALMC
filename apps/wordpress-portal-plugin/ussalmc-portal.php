@@ -3,7 +3,7 @@
  * Plugin Name:       USSALMC Portal
  * Plugin URI:        https://ussa.space
  * Description:       Member/community portal for the USSA Lore Master Core. Provides three real Elementor widgets — Market, Stat Readout, Module Grid — that read the core REST API and render in the USSALMC theme's HUD design system (palette inherited from the Elementor Global Kit, no widget-side colors). Also exposes matching shortcodes, plus RSI-handle-verified registration ([ussalmc_register]/[ussalmc_verify]) gating all three widgets until a member proves ownership of their claimed RSI handle via StarCitizen-API (never by fetching robertsspaceindustries.com directly).
- * Version:           0.5.0
+ * Version:           0.8.3
  * Requires PHP:      8.0
  * Author:            USSALMC
  * License:           MIT
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // No direct access.
 }
 
-define( 'USSALMC_PORTAL_VERSION', '0.5.0' );
+define( 'USSALMC_PORTAL_VERSION', '0.8.1' );
 define( 'USSALMC_PORTAL_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once USSALMC_PORTAL_DIR . 'inc/api.php';
@@ -23,6 +23,7 @@ require_once USSALMC_PORTAL_DIR . 'inc/widgets.php';
 require_once USSALMC_PORTAL_DIR . 'inc/rsi-verify.php';
 require_once USSALMC_PORTAL_DIR . 'inc/trade-log.php';
 require_once USSALMC_PORTAL_DIR . 'inc/trade-submit.php';
+require_once USSALMC_PORTAL_DIR . 'inc/uex-ticker.php';
 
 /**
  * Shortcodes mirroring the three widgets, so the layout can be assembled from a

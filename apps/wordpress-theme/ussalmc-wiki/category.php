@@ -37,7 +37,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<?php if ( ! empty( $it['thumb'] ) ) : ?>
 									<img class="ussalmc-entcard__thumb" src="<?php echo esc_url( $it['thumb'] ); ?>" alt="" loading="lazy" />
 								<?php else : ?>
-									<span class="ussalmc-entcard__thumb ussalmc-entcard__thumb--placeholder" aria-hidden="true"><?php echo esc_html( mb_strtoupper( mb_substr( (string) $it['name'], 0, 1 ) ) ); ?></span>
+									<span class="ussalmc-entcard__thumb ussalmc-entcard__thumb--placeholder ussalmc-novisual" aria-hidden="true">
+									<span class="ussalmc-novisual__glyph"><?php echo esc_html( mb_strtoupper( mb_substr( (string) $it['name'], 0, 1 ) ) ); ?></span>
+									<span class="ussalmc-novisual__label">No Visual Data</span>
+								</span>
 								<?php endif; ?>
 								<span class="ussalmc-entcard__body">
 									<span class="ussalmc-entcard__name"><?php echo esc_html( $it['name'] ); ?></span>

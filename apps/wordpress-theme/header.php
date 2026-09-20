@@ -16,6 +16,31 @@ $rail_items = array(
 	array( 'Comms',            '#comms',             false, '<path d="M4 4h16v12H8l-4 4z"/>' ),
 );
 $mark = ussalmc_theme_asset( 'ussa-mark.png' );
+
+/**
+ * Top menu (replaces the old decorative "TERMINAL / HURSTON HUB / ..."
+ * breadcrumb text with real site navigation). "Knowledge Base" is a
+ * dropdown built from the live category index (ussalmc_wiki_category_index(),
+ * server-side cached — see API_CATEGORIES_CACHE_TTL_SEC) so it always
+ * reflects what's actually in the KB, never a hand-maintained list that
+ * drifts from reality. Falls back to just the "All Categories" link if the
+ * core API is unreachable — never lets a header include break the page.
+ */
+$kb_categories = array();
+if ( function_exists( 'ussalmc_wiki_category_index' ) ) {
+	$cats = ussalmc_wiki_category_index();
+	if ( ! is_wp_error( $cats ) && is_array( $cats ) ) {
+		$kb_categories = array_filter(
+			$cats,
+			static function ( $c ) {
+				return ( (int) ( $c['entry_count'] ?? 0 ) > 0 ) || isset( $c['freshness'] );
+			}
+		);
+		usort( $kb_categories, static function ( $a, $b ) {
+			return (int) ( $b['entry_count'] ?? 0 ) <=> (int) ( $a['entry_count'] ?? 0 );
+		} );
+	}
+}
 ?><!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
@@ -52,21 +77,31 @@ $mark = ussalmc_theme_asset( 'ussa-mark.png' );
 				<div class="brand-text">USSA<span>UNITED SPACE SECURITIES ASSOC.</span><small>CORP-NET</small></div>
 			</div>
 			<div class="topbar-div"></div>
-			<div class="breadcrumb">TERMINAL <b>/ HURSTON HUB / <?php echo esc_html( strtoupper( wp_get_document_title() ) ); ?></b></div>
 
-			<nav class="topbar-nav" aria-label="Knowledge Base navigation">
-				<?php
-				wp_nav_menu(
-					array(
-						'theme_location' => 'topbar',
-						'container'      => false,
-						'menu_class'     => 'topbar-menu',
-						'menu_id'        => 'menu-topbar',
-						'depth'          => 1,
-						'fallback_cb'    => 'ussalmc_topbar_menu_fallback',
-					)
-				);
-				?>
+			<nav class="topmenu" aria-label="Primary site navigation">
+				<div class="topmenu__item">
+					<a class="topmenu__link" href="<?php echo esc_url( home_url( '/' ) ); ?>">Dashboard</a>
+				</div>
+				<div class="topmenu__item">
+					<a class="topmenu__link" href="<?php echo esc_url( home_url( '/wiki/' ) ); ?>">Knowledge Base <span class="topmenu__caret">▾</span></a>
+					<div class="topmenu__panel">
+						<a class="topmenu__sublink topmenu__sublink--all" href="<?php echo esc_url( home_url( '/wiki/' ) ); ?>">All Categories</a>
+						<?php foreach ( $kb_categories as $cat ) :
+							$slug = $cat['slug'] ?? '';
+							if ( ! $slug || $slug === 'trade_route' ) { continue; } // trade routes get their own top-level item below
+							$href  = add_query_arg( 'category', rawurlencode( $slug ), home_url( '/wiki/' ) );
+							$count = (int) ( $cat['entry_count'] ?? 0 );
+							?>
+							<a class="topmenu__sublink" href="<?php echo esc_url( $href ); ?>">
+								<?php echo esc_html( $cat['display_name'] ?? ucfirst( $slug ) ); ?>
+								<span class="topmenu__count"><?php echo esc_html( $count ); ?></span>
+							</a>
+						<?php endforeach; ?>
+					</div>
+				</div>
+				<div class="topmenu__item">
+					<a class="topmenu__link" href="<?php echo esc_url( add_query_arg( 'category', 'trade_route', home_url( '/wiki/' ) ) ); ?>">Trade Routes</a>
+				</div>
 			</nav>
 
 			<div class="topbar-right">

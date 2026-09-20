@@ -70,6 +70,14 @@ add_shortcode( 'ussalmc_dashboard', function () {
 			?>
 		</div>
 
+		<!-- LIVE COMMODITY TICKER: split-flap board, real portal widget -->
+		<?php if ( $has_portal && shortcode_exists( 'ussalmc_ticker' ) ) : ?>
+			<div class="ussalmc-ticker-section">
+				<div class="ussalmc-ticker-section__label">LIVE MARKET FEED</div>
+				<?php echo do_shortcode( '[ussalmc_ticker]' ); ?>
+			</div>
+		<?php endif; ?>
+
 		<!-- MODULE GRID: left = Contracts (placeholder) + Market (real);
 		                  right = Fleet (placeholder) + Comms (placeholder) -->
 		<div class="modules">
