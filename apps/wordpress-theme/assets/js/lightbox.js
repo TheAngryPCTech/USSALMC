@@ -16,6 +16,31 @@
 
   var overlay, imgEl, capEl, lastFocus;
 
+  // Every entity image is now self-hosted in two tiers (media-store.ts):
+  // `url`/`src` is a display-sized copy, `data-full` (rendered from the
+  // entity's images[].full_url when present) is a separately self-hosted
+  // true full-resolution original. Prefer that when the markup has it.
+  //
+  // Fallback for anything not yet carrying a `data-full` (an entity image
+  // added before the two-tier design, or a source with no separate full-size
+  // variant, e.g. RSI's own CDN): starcitizen.tools (MediaWiki) serves a
+  // resized-down rendition at
+  //   {host}/thumb/{a}/{ab}/{Filename.ext}/{N}px-{Filename.ext}[.webp][?q]
+  // and the TRUE original at {host}/{a}/{ab}/{Filename.ext} — confirmed live
+  // a 400px webp thumb is ~37KB vs. the real original's ~300KB. Any URL that
+  // doesn't match this exact pattern is returned unchanged — it's not a
+  // resized-down thumbnail to begin with, so the given URL already is the
+  // real image.
+  function fullSizeUrl(url) {
+    if (!url) { return url; }
+    var m = url.match(/^(https?:\/\/[^/]+)\/thumb\/(.+?)\/\d+px-[^/?]+(?:\?.*)?$/);
+    return m ? (m[1] + '/' + m[2]) : url;
+  }
+
+  function resolveFullSize(explicitFull, displayUrl) {
+    return explicitFull || fullSizeUrl(displayUrl);
+  }
+
   function build() {
     if (overlay) { return; }
     overlay = document.createElement('div');
@@ -71,24 +96,27 @@
     var entity = e.target.closest ? e.target.closest('.ussalmc-entity') : null;
     if (!entity) { return; }
 
-    // Gallery thumb: an <a> wrapping the thumb, href = full-size image.
+    // Gallery thumb: an <a> wrapping the thumb. data-full (when the wiki
+    // plugin rendered it) is the self-hosted full-resolution original;
+    // otherwise fall back to transforming the href it links to.
     var link = e.target.closest('a.ussalmc-thumb, .ussalmc-entity__gallery a');
     if (link && link.getAttribute('href')) {
       e.preventDefault();
       var thumbImg = link.querySelector('img');
-      open(link.getAttribute('href'),
+      open(resolveFullSize(link.getAttribute('data-full'), link.getAttribute('href')),
            thumbImg ? thumbImg.getAttribute('alt') : '',
            thumbImg ? thumbImg.getAttribute('alt') : '');
       return;
     }
 
-    // Hero image (a plain <img>, not linked): open its own source.
+    // Hero image (a plain <img>, not linked): same data-full preference,
+    // falling back to transforming its own src.
     var hero = e.target.closest('img.ussalmc-entity__hero');
     if (hero) {
       e.preventDefault();
       var fig = hero.closest('figure');
       var cap = fig ? fig.querySelector('figcaption') : null;
-      open(hero.getAttribute('src'),
+      open(resolveFullSize(hero.getAttribute('data-full'), hero.getAttribute('src')),
            cap ? cap.textContent : (hero.getAttribute('alt') || ''),
            hero.getAttribute('alt') || '');
     }

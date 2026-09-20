@@ -19,6 +19,7 @@
 import { query } from '../../api/src/db.js';
 import { getEntity, upsertEntity } from '../../api/src/entity-repo.js';
 import type { Entity } from '../../api/src/types.js';
+import { downloadAndStoreImage } from './media-store.js';
 
 const line = (s = '') => console.log(s);
 
@@ -58,6 +59,8 @@ async function importSystems(): Promise<Map<number, string>> {
   for (const s of systems) {
     const entityId = `location_${slugify(s.name)}`;
     idMap.set(s.id, entityId);
+    const rawThumb: string | undefined = s.thumbnail?.images?.post;
+    const stored = rawThumb ? await downloadAndStoreImage(rawThumb) : null;
     await upsertEntity({
       id: entityId, type: 'location', name: s.name,
       summary: null,
@@ -69,8 +72,11 @@ async function importSystems(): Promise<Map<number, string>> {
         affiliations: (s.affiliation || []).map((a: any) => a.name),
         position: { x: s.position_x, y: s.position_y, z: s.position_z },
       },
-      images: s.thumbnail?.images?.post
-        ? [{ url: s.thumbnail.images.post, role: 'primary', added_by: 'connector', source_url: s.info_url ?? null, license_note: LICENSE_NOTE }]
+      images: rawThumb
+        ? [{
+            url: stored?.localUrl ?? rawThumb, original_url: rawThumb, full_url: stored?.fullUrl ?? null,
+            role: 'primary', added_by: 'connector', source_url: s.info_url ?? null, license_note: LICENSE_NOTE,
+          }]
         : [],
       source: sourceOf(s.info_url ?? null),
       game_version: null,
@@ -139,11 +145,52 @@ async function importAffiliations() {
 }
 
 // ---- Roadmap: releases, each with nested `cards` (the actual deliverables) ----
+// card.thumbnail is a nested RSI media object ({ id, urls: { rect, large,
+// source, square } }), not a plain URL string — the schema's images[].url
+// field must be a string (docs/schema.md). An earlier version of this
+// importer stored the raw object directly, which passed upsertEntity/the API
+// fine (attributes/images are just JSONB, no shape validation there) but
+// crashed the WHOLE wiki category listing for every visitor the moment PHP
+// tried to esc_url() a non-string value — a fatal type error mid-render,
+// not a graceful per-card failure. Extract a real string URL here instead.
+// A previous fix here (see docs/decisions-log.md) extracted a string out of
+// the nested { urls: {...} } object but assumed that string was already a
+// complete URL. Checked live: the VAST MAJORITY of roadmap cards (925 of
+// 1,069 today) actually return a site-RELATIVE path here (e.g.
+// "/media/1w9r0ekh3lj0er/hub_large/HelmetPolish.jpg"), only a minority (144)
+// return a full "https://media.robertsspaceindustries.com/..." URL — two
+// different real shapes from the same API field, not a hypothetical. A
+// relative path stored as-is 404s in the browser (no host to resolve
+// against) — confirmed by testing the exact broken URL live, then confirmed
+// the fix by testing "https://robertsspaceindustries.com" + that same path
+// returns a real 200. This is RSI's own public roadmap media host (the same
+// origin family the absolute URLs already point at), not a new site being
+// scraped — the API just sometimes hands back its path relative to it.
+function resolveThumbUrl(u: unknown): string | null {
+  if (typeof u !== 'string' || !u) return null;
+  if (/^https?:\/\//i.test(u)) return u;
+  if (u.startsWith('/')) return `https://robertsspaceindustries.com${u}`;
+  return null; // unrecognized shape — never guess further
+}
+
+function roadmapThumbnailUrl(thumbnail: any): string | null {
+  if (typeof thumbnail === 'string') return resolveThumbUrl(thumbnail);
+  return (
+    resolveThumbUrl(thumbnail?.urls?.large) ??
+    resolveThumbUrl(thumbnail?.urls?.rect) ??
+    resolveThumbUrl(thumbnail?.urls?.square) ??
+    resolveThumbUrl(thumbnail?.urls?.source) ??
+    null
+  );
+}
+
 async function importRoadmap() {
   const releases = await scapiGet('/roadmap/starcitizen');
   let n = 0;
   for (const rel of releases) {
     for (const card of rel.cards || []) {
+      const thumbUrl = roadmapThumbnailUrl(card.thumbnail);
+      const stored = thumbUrl ? await downloadAndStoreImage(thumbUrl) : null;
       await upsertEntity({
         id: `patch_note_roadmap_${slugify(card.name)}_${card.id}`, type: 'patch_note', name: card.name,
         summary: null,
@@ -154,7 +201,12 @@ async function importRoadmap() {
           scheduled_at: card.scheduled_at ?? null, released: !!card.released,
           url_slug: card.url_slug ?? null, // real URL pattern unconfirmed — never guess one
         },
-        images: card.thumbnail ? [{ url: card.thumbnail, role: 'primary', added_by: 'connector', source_url: null, license_note: LICENSE_NOTE }] : [],
+        images: thumbUrl
+          ? [{
+              url: stored?.localUrl ?? thumbUrl, original_url: thumbUrl, full_url: stored?.fullUrl ?? null,
+              role: 'primary', added_by: 'connector', source_url: null, license_note: LICENSE_NOTE,
+            }]
+          : [],
         source: sourceOf(null), // no confirmed direct URL for a single card — see url_slug attribute
         game_version: null,
       });

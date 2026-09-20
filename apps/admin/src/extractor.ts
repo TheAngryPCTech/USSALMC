@@ -186,6 +186,13 @@ export function extract(html: string, pageUrl: string): ExtractionResult {
     let url: string;
     try { url = new URL(src, base).toString(); } catch { return; }
     if (!/\.(png|jpe?g|webp|gif|svg)/i.test(url)) return;
+    // Wiki's own generic "no image available" filler graphic — shown INSIDE
+    // the infobox exactly when there's no real photo, which is why the
+    // inInfobox-only exclusion below doesn't cover it. Real incident: this
+    // slipped through as a "primary" image candidate for 462 entities before
+    // being caught and cleaned up (docs/decisions-log.md) — never emit it as
+    // a candidate at all, regardless of where it sits on the page.
+    if (/placeholder|coming.?soon/i.test(url)) return;
     if (/logo|icon|sprite|badge|flag|1x1|spacer/i.test(url) && !inInfobox) return;
     // Small UI chrome (disambiguation-hatnote icons, inline trademark glyphs,
     // etc.) doesn't always carry a recognizable filename, but it's reliably

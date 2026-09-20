@@ -19,6 +19,7 @@ import {
   updateQueueVariance, markMismatch, logScrape, onTemplateChanged, getQueueItem,
 } from './pipeline.js';
 import { query } from '../../api/src/db.js';
+import { downloadAndStoreImage } from './media-store.js';
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 50);
@@ -125,8 +126,17 @@ async function buildDraft(
     if (!c) continue;
     if (s.target === 'ignore') continue;
     if (c.kind === 'image' && c.imageUrl) {
+      // Download and self-host — we don't control the wiki's media CDN, so
+      // we can't guarantee that URL keeps working (see media-store.ts).
+      // Falls back to the original external URL if the download fails
+      // (still functional today, just not future-proof) rather than
+      // dropping the image entirely.
+      const stored = await downloadAndStoreImage(c.imageUrl);
       images.push({
-        url: c.imageUrl, caption: null, role: s.role || c.role || 'gallery',
+        url: stored?.localUrl ?? c.imageUrl,
+        original_url: c.imageUrl,
+        full_url: stored?.fullUrl ?? null,
+        caption: null, role: s.role || c.role || 'gallery',
         added_by: 'scraper', source_url: sourceUrl,
         license_note: 'REVIEW REQUIRED: scraped image, likely copyrighted (wiki/official).',
       });

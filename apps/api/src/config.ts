@@ -34,6 +34,19 @@ export const config = {
   scraper: {
     userAgent: req('SCRAPER_USER_AGENT', 'USSALMC-Bot/0.1 (+respect-robots)'),
   },
+  media: {
+    // Self-hosted entity images (Phase 18): downloaded once by the
+    // admin scraper's media-store.ts, served back out by this API at the
+    // unversioned /media/* path (see index.ts — deliberately NOT under /v1/,
+    // matching the existing /health precedent for infrastructure endpoints
+    // that aren't Bearer-key-gated JSON API routes; a browser <img src> can't
+    // attach an Authorization header, so this MUST stay outside the /v1/
+    // auth hook). dir is a path inside the container — the docker-compose
+    // `ussalmc_media` volume mounts here in both the api and admin services
+    // so admin can write what api then serves.
+    dir: req('MEDIA_DIR', path.join(projectRoot, '.media')),
+    publicBase: req('MEDIA_PUBLIC_BASE', `http://localhost:${req('API_PORT', '3000')}`),
+  },
   embeddings: {
     model: req('API_EMBEDDING_MODEL', 'Xenova/all-MiniLM-L6-v2'),
     dim: 384,

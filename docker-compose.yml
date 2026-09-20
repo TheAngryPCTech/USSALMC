@@ -57,6 +57,10 @@ services:
       API_PORT: 3000
       TRUST_PROXY: "true"         # behind nginx: honor X-Forwarded-* (real client IP)
       SEED_ON_START: ${SEED_ON_START:-true}
+      MEDIA_DIR: /app/media                     # self-hosted entity images (Phase 18) — served at /media/* (unversioned, no auth)
+      MEDIA_PUBLIC_BASE: ${MEDIA_PUBLIC_BASE:-https://api.ussa.space}
+    volumes:
+      - ussalmc_media:/app/media
     depends_on:
       db:
         condition: service_healthy
@@ -114,6 +118,10 @@ services:
       TRUST_PROXY: "true"
       ADMIN_USER: ${ADMIN_USER:?set ADMIN_USER in .env}          # required
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}  # required
+      MEDIA_DIR: /app/media                     # self-hosted entity images (Phase 18) — admin writes, api serves
+      MEDIA_PUBLIC_BASE: ${MEDIA_PUBLIC_BASE:-https://api.ussa.space}
+    volumes:
+      - ussalmc_media:/app/media
     depends_on:
       - api
     ports:
@@ -208,6 +216,8 @@ services:
       # portal-only core API client key (gated trade submission; separate identity
       # from the shared wiki key so only this path can assert rsi_verified=true).
       PORTAL_API_KEY: ${PORTAL_API_KEY:-}
+      # portal's commodity price ticker (UEX Corp, unofficial fan project).
+      UEX_API_KEY: ${UEX_API_KEY:-}
       # SSO handoff (wp-admin "USSA Admin" menu -> the admin tool): shared HMAC
       # secret + the BROWSER-reachable admin app URL (not the in-network name).
       ADMIN_SSO_SECRET: ${ADMIN_SSO_SECRET}
@@ -226,6 +236,7 @@ volumes:
   ussalmc_pgdata:
   wordpress_data:
   wordpress_db_data:
+  ussalmc_media: # self-hosted entity images (Phase 18) — written by admin, served by api
 
 networks:
   ussalmc:
