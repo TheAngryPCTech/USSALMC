@@ -7,6 +7,13 @@
 -- includes the fully anonymous, no-login trade-submit app) — otherwise any
 -- client could just claim rsi_verified:true and get an unearned trust boost.
 
+-- NOTE: migrations replay in full on every container start (no per-migration
+-- applied-tracking), so this list must stay a superset of every client any
+-- later migration adds too (0013 adds 'openclaw') — otherwise, once real rows
+-- exist with a later client value, THIS migration's replay fails outright
+-- re-narrowing the constraint out from under them (hit live 2026-09-19: 0012
+-- started failing the moment an 'openclaw' row existed, silently blocking
+-- every migration after it, including 0014, from ever running again).
 ALTER TABLE api_keys DROP CONSTRAINT IF EXISTS api_keys_client_check;
 ALTER TABLE api_keys ADD CONSTRAINT api_keys_client_check
-  CHECK (client IN ('wiki','mobile','desktop','discord','twitch','portal'));
+  CHECK (client IN ('wiki','mobile','desktop','discord','twitch','portal','openclaw'));
