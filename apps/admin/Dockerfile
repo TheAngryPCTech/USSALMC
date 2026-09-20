@@ -27,6 +27,13 @@ WORKDIR /app/apps/admin
 # copy the whole tree so both apps/api/node_modules and apps/admin/node_modules
 # are present and relative imports resolve
 COPY --from=build /app /app
+# Chromium + its OS deps, for import-scmdb-signatures.ts (Phase 23) — renders
+# a real SPA page with a real browser rather than fetching its data endpoints
+# directly (see that script's own comment on why: robots.txt disallows
+# /data/, so this only ever reads what the rendered page displays, same as a
+# human visitor's browser). --with-deps works here (unlike on the bare host)
+# because a Docker build runs as root, no sudo/TTY prompt involved.
+RUN npx playwright install --with-deps chromium
 # ADMIN_PORT is read by the app; container listens on it (see .env / compose)
 EXPOSE 4000
 CMD ["npm", "start"]
