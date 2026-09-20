@@ -3,7 +3,7 @@
  * Plugin Name:       USSALMC Wiki
  * Plugin URI:        https://api.ussa.space
  * Description:       Star Citizen wiki consumer for the USSA Lore Master Core. Reads entities from the core REST API (versioned /v1) using a server-side Bearer key and renders entity cards, hybrid search, and category views via shortcodes. Output goes through a theme template-override system, so an active theme can restyle it with no plugin changes. Never exposes the API key to the browser.
- * Version:           0.3.3
+ * Version:           0.4.1
  * Requires PHP:      8.0
  * Author:            USSALMC
  * License:           MIT
@@ -130,6 +130,27 @@ add_shortcode( 'ussalmc_search', function ( $atts ) {
 } );
 
 /**
+ * [ussalmc_sig_ident] — "Sig Ident": type a mining scan signature value,
+ * get back which ore(s) it identifies. Reads ?sig= from the query string,
+ * same GET-and-render pattern as [ussalmc_search]. Rendered via
+ * templates/sig-ident.php.
+ */
+add_shortcode( 'ussalmc_sig_ident', function () {
+	$sig     = isset( $_GET['sig'] ) ? sanitize_text_field( wp_unslash( $_GET['sig'] ) ) : '';
+	$result  = null;
+	$error   = null;
+	if ( $sig !== '' ) {
+		$res = ussalmc_wiki_identify_signature( $sig );
+		if ( is_wp_error( $res ) ) {
+			$error = $res->get_error_message();
+		} else {
+			$result = $res;
+		}
+	}
+	return ussalmc_wiki_render_template( 'sig-ident', compact( 'sig', 'result', 'error' ) );
+} );
+
+/**
  * [ussalmc_categories] — category index of the knowledge base.
  *
  * No ?category= -> the INDEX view: one card per top-level category (entry
@@ -149,6 +170,23 @@ add_shortcode( 'ussalmc_categories', function () {
 			return ussalmc_wiki_render_template( 'category-grid', array( 'categories' => array(), 'error' => $categories->get_error_message() ) );
 		}
 		return ussalmc_wiki_render_template( 'category-grid', array( 'categories' => $categories, 'error' => null ) );
+	}
+
+	// Trade routes get a dedicated grouped view (Picking Up / Dropping Off,
+	// by System -> Planet -> Terminal, then commodity) instead of the
+	// generic entity-card grid — a flat card grid doesn't answer "what can I
+	// do from here", which is the actual question this data is for.
+	if ( $active === 'trade_route' ) {
+		$grouped = ussalmc_wiki_trade_routes_grouped();
+		if ( is_wp_error( $grouped ) ) {
+			return ussalmc_wiki_render_template( 'trade-routes', array( 'picking_up' => array(), 'dropping_off' => array(), 'total' => 0, 'error' => $grouped->get_error_message() ) );
+		}
+		return ussalmc_wiki_render_template( 'trade-routes', array(
+			'picking_up'   => $grouped['picking_up'],
+			'dropping_off' => $grouped['dropping_off'],
+			'total'        => $grouped['total'],
+			'error'        => null,
+		) );
 	}
 
 	$data = ussalmc_wiki_categories( $active );

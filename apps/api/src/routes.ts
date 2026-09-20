@@ -128,6 +128,60 @@ export function registerRoutes(app: FastifyInstance) {
     return { count: routes.length, sorted_by: 'profit_per_unit', routes };
   });
 
+  // GET /v1/mining/signature?q=8600 | ~8600 | 8000-9000 — "Sig Ident" (Phase
+  // 23): identify which ore a scanned signature value belongs to, over the
+  // scan_signatures.values[] data enriched onto commodity entities by
+  // import-scmdb-signatures.ts. Mirrors SCMDB's own query modes exactly
+  // (exact / ~tolerance / min-max range) since that's the UX this tool is
+  // replacing a trip to SCMDB for, per the mining guide that first surfaced
+  // it (commodity `guide_...`, Phase 22).
+  app.get('/v1/mining/signature', async (req: any, reply) => {
+    const raw = (req.query.q ?? '').toString().trim();
+    if (!raw) return reply.code(400).send({ error: { code: 'bad_request', message: 'q is required — a number, ~number for ±10% tolerance, or min-max for a range' } });
+
+    let mode: 'exact' | 'tolerance' | 'range';
+    let lo: number, hi: number, target: number | null = null;
+    const rangeMatch = raw.match(/^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/);
+    if (raw.startsWith('~')) {
+      target = parseFloat(raw.slice(1));
+      if (!Number.isFinite(target)) return reply.code(400).send({ error: { code: 'bad_request', message: 'invalid ~value' } });
+      mode = 'tolerance'; lo = target * 0.9; hi = target * 1.1;
+    } else if (rangeMatch) {
+      mode = 'range'; lo = parseFloat(rangeMatch[1]); hi = parseFloat(rangeMatch[2]);
+      if (lo > hi) [lo, hi] = [hi, lo];
+    } else {
+      target = parseFloat(raw);
+      if (!Number.isFinite(target)) return reply.code(400).send({ error: { code: 'bad_request', message: 'q must be a number, ~number, or min-max range' } });
+      mode = 'exact'; lo = target; hi = target;
+    }
+
+    const res = await query(
+      `SELECT id, name, attributes->'scan_signatures' AS sig, source
+       FROM entities
+       WHERE attributes ? 'scan_signatures' AND status <> 'removed'`,
+    );
+    const matches: any[] = [];
+    for (const row of res.rows as any[]) {
+      const values: number[] = row.sig?.values ?? [];
+      for (const v of values) {
+        if (v >= lo && v <= hi) {
+          matches.push({
+            commodity_id: row.id, commodity_name: row.name,
+            matched_value: v, tier: values.indexOf(v) + 1, tier_count: values.length,
+            confidence: row.source?.confidence ?? null,
+          });
+          break; // one match per commodity is enough, even if it has multiple hits in-range
+        }
+      }
+    }
+    return {
+      query: raw, mode, range: { lo, hi },
+      count: matches.length,
+      matches,
+      source_note: 'Signature values from scmdb.net (community-run, unaffiliated with CIG/RSI) — confidence never exceeds "community".',
+    };
+  });
+
   // GET /v1/categories — the entity-bearing category index (with nested
   // subcategories + entry counts), for the wiki's category index view.
   // Cached server-side (API_CATEGORIES_CACHE_TTL_SEC); trade_route's
