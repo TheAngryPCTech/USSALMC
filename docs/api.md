@@ -36,6 +36,16 @@ Codes: `unauthorized` (401, missing key), `invalid_key` (401, unknown/disabled),
 ### `GET /health`  (no auth)
 `{ "status": "ok", "db": "up", "ts": "..." }`
 
+## Media (Phase 18, no auth)
+### `GET /media/:filename`
+Static file serving for self-hosted entity images — deliberately outside
+`/v1/` (same exemption as `/health`) so a plain `<img src>` works with no
+Authorization header. Filenames are content-addressed
+(`sha256(source URL).ext`), served with a 30-day immutable cache-control.
+Populated by the admin scraper's `media-store.ts` (see
+`docs/schema.md` Phase 18) — not a route a client ever POSTs to; entities
+reference these URLs directly in `images[].url` / `images[].full_url`.
+
 ## Entities
 ### `GET /v1/entities`
 Query params: `type`, `category` (taxonomy leaf slug from `GET /v1/categories`,
@@ -193,6 +203,24 @@ Response (201, or 429 when rate-limited):
 Explicit vouch: increments `confirmations`, sets `status='confirmed'` and
 `confidence='confirmed'`, bumps `last_verified`, logs a `confirm` event. Body
 `{ account? }`. → updated row `{ id, status, confidence, confirmations, corroboration_count, last_verified, flagged }`, or 404.
+
+## Mining ("Sig Ident", Phase 23)
+### `GET /v1/mining/signature?q=...`
+Identify which ore(s) a mining scan-signature number belongs to, over
+`attributes.scan_signatures` data enriched onto `commodity` entities from
+scmdb.net (`import-scmdb-signatures.ts`). `q` is one of:
+- an exact number — `q=3585`
+- `~number` for ±10% tolerance — `q=~8600`
+- a `min-max` range — `q=8000-9000`
+
+A signature can legitimately match more than one ore (their value bands
+overlap) — every match in range is returned, not just the first.
+
+    { "query": "~8600", "mode": "tolerance", "range": { "lo", "hi" },
+      "count": N,
+      "matches": [ { "commodity_id", "commodity_name", "matched_value",
+                     "tier", "tier_count", "confidence" }, ... ],
+      "source_note": "..." }
 
 ## Organizations
 ### `POST /v1/organizations/submit`

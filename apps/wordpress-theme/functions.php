@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'USSALMC_THEME_VERSION', '0.2.4' );
+define( 'USSALMC_THEME_VERSION', '0.4.6' );
 
 require_once get_stylesheet_directory() . '/inc/elementor-kit.php';
 require_once get_stylesheet_directory() . '/inc/dashboard.php';
@@ -34,52 +34,11 @@ add_action(
 		add_theme_support( 'align-wide' );
 		register_nav_menus(
 			array(
-				'rail'   => 'Left Rail',
-				// Navigation shown in the top status bar. Manage its items from
-				// WP Admin -> Appearance -> Menus (assign a menu to "Top Bar").
-				// If no menu is assigned, header.php falls back to a single
-				// auto-generated "Knowledge Base" link to the wiki landing page.
-				'topbar' => 'Top Bar',
+				'rail' => 'Left Rail',
 			)
 		);
 	}
 );
-
-/**
- * URL of the wiki plugin's main/landing page (entities/search/categories).
- * Prefers a Page whose content uses the [ussalmc_wiki] dispatcher shortcode;
- * falls back to the conventional /wiki/ path the bootstrap creates.
- */
-function ussalmc_wiki_url(): string {
-	$page = get_page_by_path( 'wiki' );
-	if ( $page instanceof WP_Post ) {
-		return get_permalink( $page );
-	}
-	// Also honour any page actually containing the dispatcher shortcode.
-	$found = get_posts(
-		array(
-			'post_type'      => 'page',
-			'post_status'    => 'publish',
-			'posts_per_page' => 1,
-			's'              => '[ussalmc_wiki',
-			'fields'         => 'ids',
-		)
-	);
-	if ( ! empty( $found ) ) {
-		return get_permalink( $found[0] );
-	}
-	return home_url( '/wiki/' );
-}
-
-/**
- * Fallback for the Top Bar menu when no menu is assigned in WP Admin: a single
- * "Knowledge Base" link to the wiki landing page, styled like a menu.
- */
-function ussalmc_topbar_menu_fallback(): void {
-	echo '<ul id="menu-topbar" class="topbar-menu">';
-	echo '<li class="menu-item"><a href="' . esc_url( ussalmc_wiki_url() ) . '">Knowledge Base</a></li>';
-	echo '</ul>';
-}
 
 /**
  * Fonts + stylesheet.

@@ -143,6 +143,26 @@ managed at the domain registrar/DNS host, not on the UDM.
   use `DB_HOST=db DB_PORT=5432`; api/admin/trade-submit bind `0.0.0.0` inside the
   container; `TRUST_PROXY=true` so real client IPs come from nginx X-Forwarded-For.
 - trade-submit reaches the API in-network at `http://api:3000` (not localhost).
+- `ussalmc_media` volume (Phase 18), mounted at `/app/media` in both `api`
+  (serves, `GET /media/*`) and `admin` (writes, via the scraper's
+  `media-store.ts`) — self-hosted entity images, since we don't control
+  starcitizen.tools/robertsspaceindustries.com's uptime. `MEDIA_DIR=/app/media`
+  in both; `MEDIA_PUBLIC_BASE` (default `https://api.ussa.space`) is the
+  public origin baked into every stored `images[].url`/`full_url` — changing
+  it after images already exist does NOT retroactively rewrite stored URLs,
+  only affects new downloads (a domain migration would need a one-off SQL
+  rewrite of every `entities.images` row, not currently scripted).
+  **GOTCHA verifying from this server/LAN itself**: `api.ussa.space` resolves
+  to the LAN IP (`192.168.1.29`) here, but to the real public IP
+  (`192.24.65.11`, same as `ussa.space`) everywhere else — split-horizon DNS,
+  same category of issue already solved for `admin.ussa.space`'s SSO iframe
+  (see "Live URLs" above re: Chrome's Private Network Access policy). Loading
+  a wiki page FROM THIS LAN shows self-hosted images failing with a CORS/PNA
+  error in the browser console — that's expected here and does NOT reproduce
+  for a real internet visitor; don't chase it as a bug. To verify image
+  loading correctly from this machine, force the public IP (e.g. Chromium's
+  `--host-resolver-rules=MAP api.ussa.space 192.24.65.11`, or `curl --resolve`)
+  rather than trusting local DNS.
 
 ## WordPress plugin/theme test instance (Docker Compose)
 A real, running WordPress used to develop/test the USSALMC plugins + theme. It is
@@ -252,6 +272,103 @@ part of this same compose stack and network (`ussalmc`), private (127.0.0.1:8093
   would stomp real scraped data for any of those same IDs). Same wp_options
   wiring gotcha as `STARCITIZEN_API_KEY` above: flows through
   `wordpress-cli`/`wp-init.sh` into option `ussalmc_portal_trade_api_key`.
+
+## OpenClaw MCP server (`apps/openclaw-mcp`, Phase 21)
+
+Runs on the HOST, NOT in docker-compose — it's spawned directly by the
+user's own local OpenClaw AI agent gateway (`~/.openclaw/`), which isn't
+containerized. Gives that agent (`angrydaemon`, local Ollama model) 4
+read-only tools over the KB, reused by every OpenClaw channel it's
+connected to (Discord already; Twitch is a supported OpenClaw channel, not
+yet enabled).
+
+- Build: `cd apps/openclaw-mcp && npm install && npm run build` (plain
+  tsc, produces `dist/index.js`).
+- Talks to the core API over its published `127.0.0.1:8090` port (same as
+  any other external client) — reads `USSALMC_API_BASE`/`USSALMC_API_KEY`
+  from its own env (passed by OpenClaw's `mcp.servers` config, not a
+  docker-compose env block) or falls back to the project's `.env` via
+  `dotenv` for convenience.
+- **`openclaw mcp reload` does NOT kill already-running server processes** —
+  confirmed live 2026-09-19: 16 orphaned `node .../openclaw-mcp/dist/index.js`
+  processes had accumulated since the very first registration (one per
+  historical rebuild, none ever terminated), and the long-lived Discord
+  channel session was still bound to a stale one from BEFORE a tool
+  (`ussalmc_identify_signature`) was added — so that live session genuinely
+  could not see the tool, for hours, despite every `mcp reload` run since.
+  `reload` only disposes an internal runtime-cache reference for NEW
+  sessions; it does not touch existing child processes or force existing
+  sessions to reconnect. After every `npm run build` + `openclaw mcp reload`
+  for this server, ALSO: `pkill -f 'openclaw-mcp/dist/index.js'` (kills all
+  instances; OpenClaw respawns one on the next turn) AND delete/restart any
+  long-running session that might be holding a stale connection (e.g. the
+  live Discord channel session — `openclaw sessions delete "agent:angrydaemon:discord:channel:<id>" --agent angrydaemon --yes`).
+  Skipping this step means a code change can silently never reach a real,
+  ongoing conversation while every fresh-session CLI test (which naturally
+  gets a new connection) looks correct — exactly what happened here.
+- Registered with OpenClaw via:
+  `openclaw mcp add ussalmc --command node --arg <repo>/apps/openclaw-mcp/dist/index.js --env USSALMC_API_BASE=http://localhost:8090 --env USSALMC_API_KEY=<key>`
+  — this writes into `~/.openclaw/openclaw.json`'s `mcp.servers` (OpenClaw's
+  own config, outside this repo — re-run `mcp add` with `--force`-equivalent
+  behavior, i.e. it overwrites the existing entry, if the path or key ever
+  changes). `openclaw mcp probe ussalmc` re-checks connectivity/tool
+  discovery without restarting anything.
+- `OPENCLAW_API_KEY` — see `.env.example`; a dedicated `api_keys` client
+  (migration `0013`), independent of `WIKI_API_KEY`, so this surface can be
+  revoked/rate-limited without touching the WordPress site.
+- No Docker rebuild ever needed for this piece — it's plain Node run
+  directly on the host, picked up by OpenClaw the next time it spawns the
+  MCP process (OpenClaw manages that lifecycle, not docker-compose).
+
+## Instructional guide ingestion (`apps/admin/src/import-youtube-guide.ts`, Phase 22)
+
+Runs from `apps/admin` on the HOST (or wherever admin scripts already run),
+not a new Docker service — it's a one-shot CLI import script, same category
+as `import-starcitizen-api.ts`.
+
+- `cd apps/admin && npm install` (pulls in the new `youtube-transcript` dep).
+- Requires Ollama reachable locally with `GUIDE_EXTRACTION_MODEL` pulled
+  (default `qwen3.6:35b-a3b`, same Ollama install already used by OpenClaw —
+  see `agents.defaults.model` in `~/.openclaw/openclaw.json`, unrelated
+  config store, but same underlying `ollama list`).
+- `OLLAMA_BASE_URL` / `GUIDE_EXTRACTION_MODEL` in `.env`/`.env.example`.
+- **Two-phase by necessity**: Ollama (behind the NVIDIA "Personal AI Router")
+  only accepts plaintext requests from true loopback — confirmed live, even
+  `host.docker.internal` from inside a container gets hard-rejected
+  (`{"code":"loopback-only"}`). `db` is deliberately unreachable from the
+  host (no `ports:` mapping, trust auth — safe only because nothing outside
+  the compose network can reach it; publishing even a loopback port would
+  make it a credential-free connection for any local process, unlike the
+  app services' loopback ports which still sit behind their own auth). No
+  single place has both, so extraction runs on the host, storage runs in
+  the container, bridged by a JSON payload over stdout/stdin:
+  ```
+  cd apps/admin
+  npx tsx src/import-youtube-guide.ts "<youtube-url>" [--topic mining] [--difficulty beginner] \
+    | docker compose exec -T admin npx tsx src/import-youtube-guide.ts --store-from-stdin
+  ```
+- No new API routes, no Docker rebuild — reuses the existing entities
+  table/`upsertEntity`, just a new `attributes.category = 'guide'` value.
+
+## "Sig Ident" — mining signature identification (Phase 23)
+
+- `apps/admin/src/import-scmdb-signatures.ts` — run inside the `admin`
+  container (`docker compose exec admin npx tsx src/import-scmdb-signatures.ts`),
+  unlike the YouTube guide importer: this one has no loopback-only
+  constraint (Playwright just needs normal internet access), only the DB
+  constraint, so it runs entirely in one place.
+- Requires Chromium in the admin image — `apps/admin/Dockerfile`'s runtime
+  stage now runs `npx playwright install --with-deps chromium` (needs a
+  rebuild: `docker compose build admin`, larger image/longer build than
+  before, first-time browser download).
+- WordPress: `[ussalmc_sig_ident]` shortcode, live at `/sig-ident/` on the
+  test instance (created via wp-cli, installed ad hoc into the `wordpress`
+  container — `curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`
+  — no `mysql`/`wp` client was already present there).
+- Discord/AngryDaemon: `ussalmc_identify_signature` MCP tool
+  (`apps/openclaw-mcp`) — same build/reload steps as any other MCP tool
+  change (`npm run build`, `openclaw mcp reload`).
+- No new env vars, no `db`/Ollama access changes.
 
 ## Admin authentication (DB-backed, migration 0004 `admin_users`, roles added 0007)
 - Session-cookie login (NOT the API bearer keys). Bootstrap account from
