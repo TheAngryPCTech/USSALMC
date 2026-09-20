@@ -40,6 +40,15 @@ admin/ — the scraper + admin review web UI
 bots/
 discord/
 twitch/
+openclaw-mcp/ — MCP (Model Context Protocol) stdio server giving the
+              user's own locally-run OpenClaw AI agent real read-only
+              tools over the knowledge base (search, get entity, list
+              categories). Runs on the HOST (spawned by OpenClaw itself
+              via its `mcp.servers` config), not in Docker — replaces the
+              separate bots/discord + bots/twitch codebases, since
+              OpenClaw is already one gateway connected to Discord (and
+              Twitch is a supported OpenClaw channel too) rather than
+              needing a bot per channel. See Decisions Log, Phase 21.
 /scripts — one-off or maintenance scripts (re-embed, backfill, etc.)
 /.env.example — every required env var, with a placeholder value and
 a one-line comment on what it's for
@@ -111,3 +120,11 @@ A phase isn't finished when the code is written — it's finished when:
 ## Decisions Log
 *(Append entries here as judgment calls come up — one line each, dated,
 with the decision and why.)*
+- 2026-09-19: Added `/apps/openclaw-mcp` (new top-level app folder) instead
+  of building out the planned `bots/discord`/`bots/twitch` — the user
+  already runs OpenClaw (a local multi-channel AI agent gateway, already
+  connected to Discord, with Twitch as a supported-but-unconfigured
+  channel) and asked to integrate through it instead. One MCP server, one
+  `openclaw` api_keys client (migration 0013), serves every channel that
+  agent is connected to. Full rationale + verification in
+  docs/decisions-log.md.
