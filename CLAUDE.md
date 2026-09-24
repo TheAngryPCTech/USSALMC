@@ -31,6 +31,10 @@ api.md — endpoint reference, kept in sync with reality
 decisions-log.md — running log of judgment calls made mid-build
 deployment.md      — deployment/infra steps (Docker, ports, env setup),
                      kept in sync with the actual running setup
+ai-agent-guidelines.md — behavioral rules for any AI agent answering
+                     questions from this KB (anti-fabrication discipline,
+                     tool-use gotchas) — persona-agnostic, portable to any
+                     orchestration system. See Decisions Log.
 /db
 migrations/ — every schema change is a numbered migration file
 seed/ — seed data scripts (example entities from Phase 1)
