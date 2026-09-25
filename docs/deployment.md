@@ -54,6 +54,32 @@ negotiate cleanly, not necessarily a real server misconfiguration).
   this writing — need repointing to `192.24.65.14`. SSL certs then need
   issuing per domain via AAPanel's panel.
 
+### Known gotcha: AAPanel's SSL/reverse-proxy wizard drops `X-Forwarded-Proto`
+
+Hit live on `ussa.space` right after DNS was repointed and SSL issued through
+AAPanel's panel: "too many redirects" in the browser. Root cause — using
+AAPanel's own SSL/Reverse-Proxy setup for a domain **replaces** the plain
+`docs/nginx/*.http.conf` vhost with AAPanel's own auto-generated one (still
+at the same `/www/server/panel/vhost/nginx/<domain>.conf` path, but a much
+larger AAPanel-templated file with `#PROXY-CONF-START`/`END` markers). That
+generated proxy block sets `Host`/`X-Real-IP`/`X-Forwarded-For` but
+**not** `X-Forwarded-Proto` — so WordPress (`wp-config.php` already has the
+standard `HTTP_X_FORWARDED_PROTO` → `$_SERVER['HTTPS']='on'` snippet, that
+part was never the problem) can never tell the original request was HTTPS,
+and its own canonical-URL redirect fires on every request, looping forever
+once the browser is already on `https://`.
+
+**Fix applied**: add `proxy_set_header X-Forwarded-Proto $scheme;` inside
+the `#PROXY-CONF-START`/`#PROXY-CONF-END` block AAPanel generated, right
+after the `proxy_pass` line, then `nginx -t && nginx -s reload`. Verified
+from a genuinely external client (not the server itself — see the hairpin-
+NAT note above) that `https://ussa.space/` returns a clean `200` with no
+redirect, and `http://ussa.space/` redirects exactly once to `https://`.
+
+**This will very likely recur** for `api`/`trader`/`admin`.ussa.space the
+moment SSL gets set up for them the same way through AAPanel's panel —
+check for and re-apply this same one-line fix each time.
+
 ## PAUSED 2026-09-06 — physical relocation (spin-down + rack install)
 Server is being powered down and physically moved into a rack. All work as of
 this point is committed to git (`main`, this commit). Docker volumes
