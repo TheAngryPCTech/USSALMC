@@ -405,9 +405,30 @@ as `import-starcitizen-api.ts`.
 ## Data & lifecycle
 - Postgres data persists in named volume **`ussalmc_pgdata`**, on host at
   `/var/lib/docker/volumes/ussa-lore-master-core_ussalmc_pgdata/_data`.
-- Backups: whole-system disk images to an in-house datacenter (no separate
-  pg_dump). Include `/var/lib/docker/` in the image scope. For a guaranteed-clean
-  capture, `docker compose stop db` before a hot snapshot, `start` after.
+- Backups: whole-system disk images to an in-house datacenter (host-level,
+  no separate pg_dump). Include `/var/lib/docker/` in the image scope. For
+  a guaranteed-clean capture, `docker compose stop db` before a hot
+  snapshot, `start` after.
+- **Portable, Docker-deployable backup (Phase 26, `scripts/backup.sh` /
+  `scripts/restore.sh`)**: an application-level alternative to the
+  host-image strategy above — a single timestamped archive you can move to
+  any machine with Docker + this repo checked out, not tied to the
+  in-house datacenter. Runs `pg_dump`/`mariadb-dump` inside the live
+  containers (never touches the host-vs-container `DB_HOST` split
+  documented elsewhere in this file) with `--clean --if-exists` so the SQL
+  dump is self-contained whether restored onto an empty or existing
+  database, plus a `tar` of the two data volumes that aren't reproducible
+  from git (`ussalmc_media`, `wordpress_data` — plugin/theme code is
+  already in the repo, not duplicated). Includes `.env` and
+  `docker-compose.yml` so the archive alone (plus a repo checkout) is
+  enough to redeploy. `scripts/backup.sh [output-dir]` (default
+  `./backups/`, gitignored — **contains real secrets**, chmod 600 on the
+  copied `.env`). `scripts/restore.sh <backup-dir>` is a dry run by
+  default; add `--yes` to actually perform the (destructive — overwrites
+  both databases and both volumes) restore. Verified live: a real backup
+  run produced a 40MB Postgres dump (confirmed real entity data present,
+  not just schema) and 2.2GB of volume archives; `restore.sh`'s dry-run
+  safety gate confirmed to refuse without `--yes`.
 - Migrations apply automatically + idempotently on api start. Seed only when
   `SEED_ON_START=true`. (Phase 5 adds `0005_categories_variance.sql`; Phase 6 adds
   `0006_category_description.sql`; Phase 7 adds `0007_admin_roles_and_delete_audit.sql`
