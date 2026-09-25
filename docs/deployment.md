@@ -1,7 +1,58 @@
 # Deployment — USSA Lore Master Core
 
-**STATUS: LIVE in production as of 2026-09-06.** This doc reflects the actual
-running deployment, not a plan. Read it first when resuming work.
+**STATUS: migrated to full production on a dedicated AAPanel-managed host as
+of 2026-09-25** (post-MVP; see "Phase 27" below). The 2026-09-06 setup
+described further down (LAN IP 192.24.65.11, physical rack machine) now runs
+as a **test/staging environment**, not production — kept running, not
+decommissioned. This doc reflects the actual running deployment, not a plan.
+Read it first when resuming work.
+
+## Phase 27 — production migration to dedicated AAPanel host (2026-09-25)
+
+Moved from the rack-mounted dev/early-production machine to a dedicated
+webhosting box (AAPanel-managed, Ubuntu 24.04, `ns5.zbsdns.com`,
+`192.24.65.14`) once the project reached MVP. AAPanel itself has no usable
+API for deploying a custom multi-service Docker Compose stack (its
+documented API covers system stats and its own PHP/FTP/DB "website"
+abstraction only, confirmed against the official API PDF — no Docker or
+shell-exec endpoints exist; its installed Docker plugin has a private,
+undocumented API of its own). Deployed via direct root SSH instead
+(password auth — the account requires the exact right auth-method
+negotiation; public-key attempts and even password attempts can fail with
+a misleading "Permission denied (publickey)" if the client doesn't
+negotiate cleanly, not necessarily a real server misconfiguration).
+
+- **Path convention**: `/www/dk_project/dk_app/<name>/<name>/` — matches
+  where AAPanel's own Docker-app installs (e.g. an existing `anythingllm`
+  install) keep their compose files, found via `find` for
+  `docker-compose.y*ml` on the host (not guessed) — confirmed after
+  deploying that this makes a manually-placed compose project show up in
+  AAPanel's own Docker app list alongside apps installed through its UI.
+- **Deploy method**: repo synced via `rsync` directly from the dev machine
+  (not `git push`/`clone` — no GitHub credentials configured for pushing
+  from this environment), followed by `scripts/backup.sh` output rsync'd
+  over and restored with `scripts/restore.sh --yes`.
+- **Real bug caught and fixed during this deploy**: `restore.sh` passed a
+  relative backup-dir path to `docker run -v`, which Docker silently
+  misinterprets as an (invalid) named-volume reference rather than a bind
+  mount — the SQL restores (which don't go through `docker run`) had
+  already succeeded by the time this surfaced. Fixed by canonicalizing
+  `BACKUP_DIR` to an absolute path immediately in the script.
+- **Verified live, not just "containers up"**: all 6 services healthy,
+  `GET /health` → `{"status":"ok","db":"up"}`, 4,421 total entities and
+  exactly 1,733 quest entities restored (matching the pre-migration count).
+- **nginx**: the 4 existing reverse-proxy vhosts (`docs/nginx/*.http.conf`
+  — api/trader/admin/ussa.space, unchanged from the original deployment)
+  deployed to AAPanel's vhost directory (`/www/server/panel/vhost/nginx/`)
+  and verified working via `curl --resolve`/Host-header spoofing (DNS
+  doesn't point here yet). SSL deliberately left for the user to issue via
+  AAPanel's own Let's Encrypt panel per domain once DNS is repointed,
+  rather than running raw certbot against AAPanel-managed nginx.
+- **Outstanding, on the user**: DNS A records for `ussa.space`,
+  `www.ussa.space`, `api.ussa.space`, `trader.ussa.space`, and
+  `admin.ussa.space` still point at the old server (`192.24.65.11`) as of
+  this writing — need repointing to `192.24.65.14`. SSL certs then need
+  issuing per domain via AAPanel's panel.
 
 ## PAUSED 2026-09-06 — physical relocation (spin-down + rack install)
 Server is being powered down and physically moved into a rack. All work as of

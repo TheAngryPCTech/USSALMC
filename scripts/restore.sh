@@ -17,6 +17,13 @@ if [ ! -d "$BACKUP_DIR" ]; then
   echo "ERROR: $BACKUP_DIR is not a directory." >&2
   exit 1
 fi
+# `docker run -v` requires an ABSOLUTE host path for a bind mount — a
+# relative one is silently misinterpreted as a (then invalid) named volume.
+# Confirmed live: a relative $BACKUP_DIR failed with "includes invalid
+# characters for a local volume name" on the volume-restore step, after the
+# SQL restores (which don't go through `docker run -v`) had already
+# succeeded. Canonicalize immediately so this can never bite again.
+BACKUP_DIR="$(cd "$BACKUP_DIR" && pwd)"
 for f in postgres_ussa_lore.sql mariadb_wordpress.sql volume_ussalmc_media.tar.gz volume_wordpress_data.tar.gz; do
   if [ ! -f "$BACKUP_DIR/$f" ]; then
     echo "ERROR: $BACKUP_DIR/$f missing — not a complete backup.sh archive." >&2
