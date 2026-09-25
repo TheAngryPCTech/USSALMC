@@ -80,6 +80,33 @@ redirect, and `http://ussa.space/` redirects exactly once to `https://`.
 moment SSL gets set up for them the same way through AAPanel's panel —
 check for and re-apply this same one-line fix each time.
 
+**Update 2026-09-25, same day**: it did recur — the user set up SSL for all
+three remaining domains via AAPanel's panel, and all three got the same
+missing-header treatment; fixed the same way (one `proxy_set_header
+X-Forwarded-Proto $scheme;` line added to each generated block). All 4
+domains (`ussa.space`, `api`, `trader`, `admin`) now confirmed working from
+a real external client — clean `200`s, no loops, `api.ussa.space/health`
+returns real JSON (`/` alone 404s, correctly — the API has no root route).
+
+**Separate incident, same session — do not repeat this**: attempted to
+install `certbot`/`python3-certbot-nginx` via `apt-get` to issue certs
+directly (to sidestep the AAPanel-wizard bug above) — this silently pulled
+in the **stock Ubuntu `nginx`/`nginx-common` packages** as a dependency of
+the certbot nginx plugin, which auto-started and bound to ports 80/443
+*alongside* AAPanel's own separate nginx install
+(`/www/server/nginx/sbin/nginx`), both simultaneously serving traffic on
+the same ports. The site kept working by luck during this window, but it
+was a genuinely unstable state (requests could've been randomly routed to
+whichever nginx accepted the connection, and the stock one knows nothing
+about our vhosts). Resolved by `systemctl stop nginx && systemctl disable
+nginx && apt-get purge -y nginx nginx-common python3-certbot-nginx`,
+confirmed via `ps` that all remaining nginx worker processes are children
+of AAPanel's own master process. **Lesson: never `apt-get install`
+anything nginx-related on an AAPanel box** — AAPanel bundles and manages
+its own nginx outside the system package manager entirely; use its panel
+UI for SSL/certs instead, even though that UI has the bug documented
+above.
+
 ## PAUSED 2026-09-06 — physical relocation (spin-down + rack install)
 Server is being powered down and physically moved into a rack. All work as of
 this point is committed to git (`main`, this commit). Docker volumes
