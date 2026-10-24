@@ -271,9 +271,9 @@ managed at the domain registrar/DNS host, not on the UDM.
 ## WordPress plugin/theme test instance (Docker Compose)
 A real, running WordPress used to develop/test the USSALMC plugins + theme. It is
 part of this same compose stack and network (`ussalmc`), private (127.0.0.1:8093).
-- **Services:** `wordpress` (image `wordpress:php8.3-apache`), `wordpress-db`
+- **Services:** `wordpress` (image `wordpress:7.1.3-php8.5-apache`), `wordpress-db`
   (image `mariadb:11`, internal-only), and `wordpress-cli` (image
-  `wordpress:cli-php8.3`) — a one-shot bootstrap that runs `apps/wordpress/wp-init.sh`
+  `wordpress:cli-2.12-php8.5`) — a one-shot bootstrap that runs `apps/wordpress/wp-init.sh`
   then exits (`restart: "no"`).
 - **Named volumes:** `wordpress_data` (WP core + uploads) and `wordpress_db_data`
   (MariaDB) — nothing is lost on container restart.

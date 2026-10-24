@@ -162,7 +162,7 @@ services:
   # bind-mounted from disk so code changes are live without rebuilding.
   # -------------------------------------------------------------------------
   wordpress:
-    image: wordpress:php8.3-apache
+    image: wordpress:7.1.3-php8.5-apache
     container_name: ussalmc-wordpress
     depends_on:
       wordpress-db:
@@ -192,7 +192,7 @@ services:
   # API. Idempotent: safe to re-run; skips install if WordPress is already up.
   # -------------------------------------------------------------------------
   wordpress-cli:
-    image: wordpress:cli-php8.3
+    image: wordpress:cli-2.12-php8.5
     container_name: ussalmc-wordpress-cli
     user: "0:0"                              # root so it can write the named volume (--allow-root)
     depends_on:

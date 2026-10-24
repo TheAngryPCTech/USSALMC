@@ -132,3 +132,10 @@ with the decision and why.)*
   `openclaw` api_keys client (migration 0013), serves every channel that
   agent is connected to. Full rationale + verification in
   docs/decisions-log.md.
+- 2026-10-22: Bumped the WordPress stack's PHP version from 8.3 to 8.5
+  (current stable PHP line). `wordpress` image: `wordpress:php8.3-apache`
+  -> `wordpress:7.1.3-php8.5-apache` (pinned to WP core 7.1.3 rather than a
+  floating `php8.5-apache` tag, so core doesn't silently move on a pull).
+  `wordpress-cli` image: `wordpress:cli-php8.3` -> `wordpress:cli-2.12-php8.5`
+  (matching WP-CLI 2.12). Verified both tags exist on Docker Hub before
+  switching.
