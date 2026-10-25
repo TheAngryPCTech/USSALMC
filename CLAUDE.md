@@ -141,3 +141,68 @@ with the decision and why.)*
   switching.
 
 - 2026-10-25: Scraper imports are external-only; public-fetch validates and pins public DNS answers for every page, robots, category and redirect request. Internal API preview calls remain separate.
+- 2026-10-25: Merged `feat/stellar-atlas` (new Stellar Atlas homepage + 3D
+  Planetary Atlas locations explorer) into `main`, deployed to the local
+  Docker test instance only (not production yet). Found the local test
+  WordPress instance's `siteurl`/`home` options were pinned to
+  `https://ussa.space` (an earlier deliberate choice, `docs/deployment.md`
+  line ~311) — this made every new theme asset URL resolve against
+  production instead of localhost, breaking the local test render. Reset
+  both options to `http://localhost:8093` for local testing; production is
+  unaffected. Also found only 2 of 96 `kind:"system"` atlas nodes (Stanton,
+  Pyro) are actually implemented in-game — the other 94 are lore-only
+  StarCitizen-API starmap entries with no in-game system to visit. Added an
+  `implemented` field to `AtlasPlace` (true only for Stanton/Pyro) and
+  filtered the WordPress theme's system picker on it, so the 3D explorer
+  only ever lists real, flyable systems; lore-only systems stay in the KB/
+  search, just not in the explorer. See docs/api.md.
+- 2026-10-25: Ships category gained "By manufacturer"/"By role" tabs
+  (`?category=ship&view=manufacturer|role`) alongside the existing flat
+  "All ships" view, grouped from the real `manufactured_by` relation and
+  normalized `role` attribute. 3D explorer: fixed Lagrange-point stations'
+  `"<System> — Sunward/Anti-sunward/±60°/180° from <planet>"` location text
+  never matching the existing "On <body>" parent-parsing regex (they were
+  silently unparented); added matching `L1`-`L5` markers in the system view.
+  Fixed the sidebar planet/moon list rendering in plain alphabetical DB
+  order instead of real distance order (added `orbit_index`, sorted the
+  tree and the orbital radii by it). Fixed orbit geometry that was baked
+  elliptical (an unrequested `*0.52` z-scale) back to true circles. Planet
+  globe textures: separated the bump/height map from the diffuse color map
+  (reusing color-as-height produced meaningless noisy bumps), removed a
+  hard-edged shading seam, doubled texture resolution, and blended each
+  texture toward a fixed-longitude sample near the poles (longitude lines
+  converge there, so a longitude-dependent pattern otherwise spirals into a
+  pinwheel) — no third-party textures used, procedural only, per the
+  existing Cornerstone-derived rule in docs/deployment.md. Declined to
+  source actual Star Citizen game textures from a third-party site even
+  under a claimed non-commercial/attribution exception — verified against
+  RSI's actual Fankit/Fandom FAQ, which says the opposite (graphic assets
+  can't be extracted and redistributed separately; non-commercial IP use
+  needs a signed license RSI isn't currently issuing).
+- 2026-10-25: Imported real Stanton location data from a user-retrieved
+  VerseGuide export (never scraped by this project — see the note above on
+  third-party data). `scripts/import-verseguide-stanton-coordinates.ts`
+  patched 69 existing entities with real surface coordinates (latitude
+  negated to match this KB's north-positive convention vs. VerseGuide's
+  north-negative display). `scripts/import-verseguide-stanton-new-locations.ts`
+  created 1,238 net-new location entities (caves/wrecks/outposts VerseGuide
+  tracks individually that this KB didn't) via the normal `upsertEntity`
+  pipeline, matched/parented by exact name only. Found microTech had NO
+  location-type KB entity at all (only `manufacturer_microtech`, the
+  company) — every microTech-body location, including its 5 Lagrange
+  stations, was silently unparented as a result.
+  `scripts/fix-microtech-parentage.ts` created `location_microtech` (named
+  `"MicroTech (planet)"` to match `starcitizen.tools` and the existing
+  ArcCorp-style disambiguation convention) and re-parented 117 affected
+  entities. Cross-checking the full `REFERENCE_SYSTEMS` roster against the
+  KB found the same gap for Yela, Lyria, Wala, Magda, and nearly all of
+  Pyro's planets/moons (Pyro I, Monox, Pyro V, Terminus, Vatra, Vuur, Pyro
+  IV) — each existed only as a `patch_note` roadmap mention, never a real
+  scraped article. `scripts/scrape-missing-stanton-pyro-bodies.ts` reuses
+  the existing admin scraper's real fetch/extract/template pipeline
+  (`apps/admin/src/{fetcher,extractor,template,scan}.ts`) against each
+  specific starcitizen.tools URL, bypassing only the broad category gate
+  (these pages are wiki-categorized "Moons"/"Planets", not "Locations" —
+  the template's field-match count is the real safety net) since the URL
+  list itself was manually curated against `REFERENCE_SYSTEMS`, not an open
+  crawl. All 11 pages scraped successfully with real content.

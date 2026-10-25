@@ -142,6 +142,7 @@ function ussalmc_wiki_fetch_all_in_category( string $slug, int $page_size = 200 
 				'name'       => $e['name'] ?? ( $e['id'] ?? '' ),
 				'category'   => $slug,
 				'attributes' => is_array( $e['attributes'] ?? null ) ? $e['attributes'] : array(),
+				'relations'  => is_array( $e['relations'] ?? null ) ? $e['relations'] : array(),
 				'thumb'      => $thumb,
 			);
 		}
@@ -152,6 +153,28 @@ function ussalmc_wiki_fetch_all_in_category( string $slug, int $page_size = 200 
 		}
 	}
 	return $items;
+}
+
+/**
+ * `manufacturer_<id>` -> display name, for grouping ships by their
+ * `manufactured_by` relation (the Ships-by-manufacturer view). One fetch
+ * of the whole manufacturer category, cached per-request — never guess a
+ * name from an entity ID.
+ */
+function ussalmc_wiki_manufacturer_name_map() {
+	static $map = null;
+	if ( $map !== null ) {
+		return $map;
+	}
+	$items = ussalmc_wiki_fetch_all_in_category( 'manufacturer' );
+	if ( is_wp_error( $items ) ) {
+		return $items;
+	}
+	$map = array();
+	foreach ( $items as $m ) {
+		$map[ $m['id'] ] = $m['name'];
+	}
+	return $map;
 }
 
 /**

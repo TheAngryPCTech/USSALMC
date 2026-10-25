@@ -20,7 +20,13 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
   const nodes = data.nodes || [],
     byId = new Map(nodes.map((n) => [n.id, n]));
   const bodies = nodes.filter(isBody),
-    systems = nodes.filter((n) => n.kind === "system");
+    // Lagrange-point stations are kind "location" (not a body), but the 3D
+    // system view still places them near their planet — same data source
+    // as bodies, just not shown as a full satellite sphere.
+    systemBodies = nodes.filter((n) => isBody(n) || n.lagrange_point),
+    // Lore-only starmap entries (not yet flyable/landable in the live game)
+    // are kept in the KB/search but never offered as an explorable system.
+    systems = nodes.filter((n) => n.kind === "system" && n.implemented !== false);
   let body = byId.get(data.body),
     selected = byId.get(data.place),
     mode = "globe",
@@ -231,6 +237,10 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
     q("more").hidden = matches.length <= limit;
     markers();
   }
+  // Distance-from-parent order (0 = closest); unordered bodies sort last
+  // rather than disappearing or defaulting to 0.
+  const orbitOrder = (n) =>
+    typeof n.orbit_index === "number" ? n.orbit_index : Infinity;
   function tree() {
     q("tree").replaceChildren();
     const systemId = q("system").value;
@@ -265,12 +275,14 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
         chooseBody(node);
       };
       q("tree").append(button);
-      for (const child of visible.filter((n) => n.parent_id === node.id))
+      for (const child of visible
+        .filter((n) => n.parent_id === node.id)
+        .sort((a, b) => orbitOrder(a) - orbitOrder(b)))
         add(child, depth + 1);
     }
-    for (const node of visible.filter(
-      (n) => !visible.some((parent) => parent.id === n.parent_id),
-    ))
+    for (const node of visible
+      .filter((n) => !visible.some((parent) => parent.id === n.parent_id))
+      .sort((a, b) => orbitOrder(a) - orbitOrder(b)))
       add(node, 0);
     if (!visible.length)
       q("tree").append(
@@ -323,7 +335,9 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
     list();
     engine?.setBody(body);
     engine?.setSystem(
-      bodies.filter((n) => (n.system_id || "unassigned") === q("system").value),
+      systemBodies.filter(
+        (n) => (n.system_id || "unassigned") === q("system").value,
+      ),
     );
     engine?.setMode(mode);
     markers();
@@ -411,8 +425,16 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
   details(selected);
   list();
   root.dataset.ready = "true";
-  // Lazy module loading keeps Three.js off ordinary pages and list-only users.
-  import("./planetary-renderer.js")
+  // Lazy module loading keeps Three.js off ordinary pages and list-only
+  // users. The query string busts the browser's module cache when this
+  // file's own ?ver= (USSALMC_THEME_VERSION) changes, since a dynamic
+  // import() has no version string of its own otherwise.
+  import(
+    "./planetary-renderer.js?v=" +
+      encodeURIComponent(
+        new URL(import.meta.url).searchParams.get("ver") || "0",
+      )
+  )
     .then(async ({ createPlanetaryRenderer }) => {
       engine = await createPlanetaryRenderer(q("scene"), q("markers"), {
         select,
@@ -428,7 +450,7 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
       });
       engine.setBody(body);
       engine.setSystem(
-        bodies.filter(
+        systemBodies.filter(
           (n) => (n.system_id || "unassigned") === q("system").value,
         ),
       );

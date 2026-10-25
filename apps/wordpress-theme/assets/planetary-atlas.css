@@ -450,7 +450,6 @@
   display: none !important;
 }
 .stellar-atlas .content:has(.planetary-atlas) {
-  max-width: 1600px;
   padding: 0 32px 45px;
 }
 .planetary-atlas {

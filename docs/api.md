@@ -605,6 +605,12 @@ also rejects encoded requests that skip the older API URL-prefix hook.
 Each node has `id`, `name`, `kind` (`system|planet|moon|body|location`), nullable
 `parent_id`, `body_id`, `system_id`, `coordinates`, `image`, `summary`,
 `confidence`, `game_version`, `source`, `hierarchy_source` and `services`.
+A `kind: "system"` node also carries `implemented` — `false` only for a
+lore-only starmap entry that is not yet flyable/landable in the live game
+(e.g. scraped from StarCitizen-API's full system list); `true` for Stanton
+and Pyro. The WordPress theme's system picker filters these out so only
+real, explorable systems appear in the 3D Planetary Atlas; lore-only systems
+remain ordinary KB entries, searchable outside the explorer.
 Coordinates are `{ latitude, longitude }` in degrees, north/east positive; empty,
 non-numeric, out-of-range and explicitly non-degree values are rejected. Generic
 `position: {x,y,z}` fields are not surface coordinates. Images use existing

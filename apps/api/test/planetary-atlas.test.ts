@@ -33,6 +33,30 @@ test("reference parentage places Bezdek on Arial, not Hurston; never invents sur
   assert.equal(b.coordinates, null);
   assert.equal(nodes.find((n) => n.id === "arial")?.parent_id, "hurston");
 });
+test("Lagrange stations resolve to their planet via '... from <planet>' phrasing", () => {
+  const nodes = projectPlanetaryAtlas([
+    row("crusader", "Crusader"),
+    row("cru_l1", "CRU-L1 Ambitious Dream Station", {
+      location: "Stanton system — Sunward from Crusader",
+    }),
+    row("cru_l4", "CRU-L4 Shallow Fields Station", {
+      location: "Stanton system — -60° from Crusader",
+    }),
+    row("arc_l3", "ARC-L3 Modern Express Station", {
+      location: "Stanton system — 180° from ArcCorp (planet)",
+    }),
+  ]);
+  const l1 = nodes.find((n) => n.id === "cru_l1")!;
+  assert.equal(l1.body_id, "crusader");
+  assert.equal(l1.system_id, "atlas_reference_stanton");
+  assert.equal(l1.lagrange_point, "L1");
+  assert.equal(nodes.find((n) => n.id === "cru_l4")?.lagrange_point, "L4");
+  const l3 = nodes.find((n) => n.id === "arc_l3")!;
+  assert.equal(l3.lagrange_point, "L3");
+  // "ArcCorp (planet)" is only a KB alias for the planet; it should still
+  // resolve to the real ArcCorp reference node, not go unassigned.
+  assert.ok(l3.body_id);
+});
 test("accepts zero degrees but rejects malformed/out-of-range/radian/galactic coordinates", () => {
   for (const coordinates of [
     { latitude: "", longitude: 0 },
@@ -155,5 +179,37 @@ test("Pyro aliases reuse KB bodies, and locations can attach to reference-only m
   assert.equal(
     nodes.find((n) => n.id === "camp")?.system_id,
     "atlas_reference_pyro",
+  );
+});
+test("reference planets/moons carry a distance-order orbit_index for schematic layout", () => {
+  const nodes = projectPlanetaryAtlas([]);
+  const hurston = nodes.find((n) => n.name === "Hurston")!;
+  const crusader = nodes.find((n) => n.name === "Crusader")!;
+  const microTech = nodes.find((n) => n.name === "microTech")!;
+  assert.equal(hurston.orbit_index, 0);
+  assert.equal(crusader.orbit_index, 1);
+  assert.equal(microTech.orbit_index, 3);
+  const arial = nodes.find((n) => n.name === "Arial")!;
+  const ita = nodes.find((n) => n.name === "Ita")!;
+  assert.equal(arial.orbit_index, 0);
+  assert.equal(ita.orbit_index, 3);
+  const pyroI = nodes.find((n) => n.name === "Pyro I")!;
+  const terminus = nodes.find((n) => n.name === "Terminus")!;
+  assert.equal(pyroI.orbit_index, 0);
+  assert.equal(terminus.orbit_index, 4);
+});
+test("only Stanton/Pyro are implemented; other star-system KB entries are not", () => {
+  const nodes = projectPlanetaryAtlas([
+    row("nyx", "Nyx", { category: "star_system" }),
+  ]);
+  assert.equal(nodes.find((n) => n.id === "nyx")?.kind, "system");
+  assert.equal(nodes.find((n) => n.id === "nyx")?.implemented, false);
+  assert.equal(
+    nodes.find((n) => n.id === "atlas_reference_stanton")?.implemented,
+    true,
+  );
+  assert.equal(
+    nodes.find((n) => n.id === "atlas_reference_pyro")?.implemented,
+    true,
   );
 });

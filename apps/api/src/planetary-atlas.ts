@@ -34,6 +34,20 @@ export interface AtlasPlace {
   hierarchy_source:
     "knowledge_base" | "stanton_reference" | "pyro_reference" | null;
   reference_only?: boolean;
+  // false only for a "system"-kind node that is not one of the game's
+  // currently implemented/playable systems (e.g. a lore-only starmap entry
+  // scraped from StarCitizen-API). Omitted/true for every other kind.
+  implemented?: boolean;
+  // Relative distance-from-parent ordering (0 = closest), for a schematic
+  // orbital layout only. Derived from the body's official in-universe name/
+  // position in the public reference roster (e.g. Pyro I..VI, or Stanton's
+  // well-known Hurston/Crusader/ArcCorp/microTech order) — never from a
+  // third-party survey site's measured coordinates. Null when unknown.
+  orbit_index: number | null;
+  // "L1".."L5" when this is a Lagrange-point station, parsed from its own
+  // official in-universe name (e.g. "CRU-L1 Ambitious Dream Station"), never
+  // guessed from prose. Null for everything else.
+  lagrange_point: string | null;
 }
 // Complete factual body rosters displayed by the two public survey indexes.
 // Names/parentage only: no coordinates, radii, terrain or orbital data copied.
@@ -80,6 +94,13 @@ const REFERENCE_SYSTEMS = [
     ],
   },
 ];
+// Only these systems are actually flyable/landable in the live game today.
+// Everything else classified as kind "system" is a lore-only starmap entry
+// (e.g. scraped from StarCitizen-API's full system list) and must not be
+// offered as an explorable system in the 3D Planetary Atlas.
+const IMPLEMENTED_SYSTEM_NAMES = new Set(
+  REFERENCE_SYSTEMS.map((s) => s.name.toLowerCase()),
+);
 function number(value: unknown): number | null {
   if (
     typeof value !== "number" &&
@@ -169,11 +190,16 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
           break;
         }
       }
-    // The wiki importer has an explicit "Stanton system — On Arial" field.
-    // Match its entire recorded body name, not arbitrary words from prose.
+    // The wiki importer has an explicit "Stanton system — On Arial" field,
+    // or, for a Lagrange point station, "Stanton system — Sunward from
+    // ArcCorp (planet)" / "...180° from Hurston" / "...+60° from Crusader".
+    // Match the entire recorded body name in either form, not arbitrary
+    // words from prose.
     if (!parent && typeof a.location === "string") {
-      const m = a.location.match(/^(.+?)\s+[—–]\s+On\s+(.+)$/i);
-      if (m) parent = resolve(m[2]);
+      const m = a.location.match(
+        /^(.+?)\s+[—–]\s+(?:On\s+(.+)|.*?\bfrom\s+(.+))$/i,
+      );
+      if (m) parent = resolve(m[2] ?? m[3]);
     }
     let system = resolve(a.star_system_id ?? a.star_system ?? a.system_id);
     const coord = a.surface_coordinates ?? a.coordinates;
@@ -232,6 +258,15 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
         last_verified: src.last_verified ?? null,
       },
       hierarchy_source: parent || system ? "knowledge_base" : null,
+      implemented:
+        kind === "system"
+          ? IMPLEMENTED_SYSTEM_NAMES.has(r.name.trim().toLowerCase())
+          : undefined,
+      orbit_index: null,
+      lagrange_point: (() => {
+        const m = r.name.match(/-L([1-5])\b/i);
+        return m ? "L" + m[1] : null;
+      })(),
     };
   });
   // Reference-only nodes fill missing catalogue entries without pretending
@@ -246,6 +281,7 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
       parentId: string | null,
       systemId: string | null,
       aliases: string[] = [],
+      orbitIndex: number | null = null,
     ) {
       const resolved = [name, ...aliases].map(resolve).find(Boolean);
       let node = resolved ? nodes.find((n) => n.id === resolved) : undefined;
@@ -274,31 +310,39 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
           },
           hierarchy_source: hierarchy,
           reference_only: true,
+          implemented: kind === "system" ? true : undefined,
+          orbit_index: orbitIndex,
+          lagrange_point: null,
         };
         nodes.push(node);
       } else {
         node.kind = kind;
+        if (kind === "system") node.implemented = true;
         if (!node.parent_id && parentId) {
           node.parent_id = parentId;
           node.hierarchy_source = hierarchy;
         }
         node.system_id ??= systemId;
+        node.orbit_index ??= orbitIndex;
       }
       for (const label of [name, ...aliases])
         referenceNames.set(label.toLowerCase(), node.id);
       return node;
     }
     const system = ensure(catalogue.name, "system", null, null);
-    for (const planet of catalogue.planets) {
+    catalogue.planets.forEach((planet, planetIndex) => {
       const p = ensure(
         planet.name,
         "planet",
         system.id,
         system.id,
         planet.aliases,
+        planetIndex,
       );
-      for (const name of planet.moons) ensure(name, "moon", p.id, system.id);
-    }
+      planet.moons.forEach((name, moonIndex) =>
+        ensure(name, "moon", p.id, system.id, [], moonIndex),
+      );
+    });
   }
   // Resolve explicit references again now that missing named worlds exist.
   for (const node of nodes) {
@@ -317,8 +361,10 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
           a.celestial_body,
       );
       if (!parent && typeof a.location === "string") {
-        const match = a.location.match(/^(.+?)\s+[—–]\s+On\s+(.+)$/i);
-        if (match) parent = resolve(match[2]);
+        const match = a.location.match(
+          /^(.+?)\s+[—–]\s+(?:On\s+(.+)|.*?\bfrom\s+(.+))$/i,
+        );
+        if (match) parent = resolve(match[2] ?? match[3]);
       }
       if (parent && parent !== node.id) {
         node.parent_id = parent;

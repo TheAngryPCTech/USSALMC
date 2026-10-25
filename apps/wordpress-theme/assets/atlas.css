@@ -37,7 +37,7 @@ body.stellar-atlas {
   display: block;
 }
 .stellar-atlas .content {
-  max-width: 1360px;
+  max-width: 1440px;
   margin: auto;
   padding: 42px 42px 60px;
 }
@@ -87,7 +87,7 @@ body.stellar-atlas {
   background: #090f16;
 }
 .atlas-header__inner {
-  max-width: 1360px;
+  max-width: 1440px;
   margin: auto;
   min-height: 96px;
   padding: 16px 42px;
@@ -488,7 +488,7 @@ body.stellar-atlas {
   white-space: nowrap;
 }
 .atlas-footer {
-  max-width: 1360px;
+  max-width: 1440px;
   margin: auto;
   padding: 27px 42px;
   display: flex;
@@ -637,6 +637,45 @@ body.stellar-atlas {
   display: flex;
   gap: 20px;
   justify-content: space-between;
+}
+.atlas-ship-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 18px;
+  border-bottom: 1px solid #243040;
+}
+.atlas-ship-tabs a {
+  padding: 10px 16px;
+  font-size: 12px;
+  color: #93a9c4;
+  border-bottom: 2px solid transparent;
+}
+.atlas-ship-tabs a:hover {
+  color: #c7dcf5;
+}
+.atlas-ship-tabs a.active {
+  color: #e9edf3;
+  border-bottom-color: #529ef4;
+}
+.atlas-group-section {
+  margin: 0 0 40px;
+}
+.atlas-group-heading {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 22px;
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #1f2934;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.atlas-group-count {
+  font-family: Inter, Arial, sans-serif;
+  font-size: 11px;
+  color: #8597ae;
+  font-weight: 400;
 }
 .atlas-entity-grid {
   display: grid;
