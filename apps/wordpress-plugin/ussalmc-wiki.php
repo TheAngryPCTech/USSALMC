@@ -3,7 +3,7 @@
  * Plugin Name:       USSALMC Wiki
  * Plugin URI:        https://api.ussa.space
  * Description:       Star Citizen wiki consumer for the USSA Lore Master Core. Reads entities from the core REST API (versioned /v1) using a server-side Bearer key and renders entity cards, hybrid search, and category views via shortcodes. Output goes through a theme template-override system, so an active theme can restyle it with no plugin changes. Never exposes the API key to the browser.
- * Version:           0.4.1
+ * Version:           0.5.0
  * Requires PHP:      8.0
  * Author:            USSALMC
  * License:           MIT
@@ -210,11 +210,20 @@ add_shortcode( 'ussalmc_categories', function () {
  * One shortcode a theme can drop on a single /wiki/ page.
  */
 add_shortcode( 'ussalmc_wiki', function () {
+	$location_atlas = ( isset( $_GET['tool'] ) && $_GET['tool'] === 'locations' ) ||
+		( isset( $_GET['category'] ) && $_GET['category'] === 'location' && ( $_GET['view'] ?? '' ) !== 'list' );
+	if ( $location_atlas && function_exists( 'ussalmc_planetary_atlas' ) && empty( $_GET['entity'] ) && empty( $_GET['q'] ) ) {
+		return ussalmc_planetary_atlas();
+	}
+	if ( isset( $_GET['tool'] ) && $_GET['tool'] === 'sig-ident' ) {
+		return do_shortcode( '[ussalmc_sig_ident]' );
+	}
 	$entity = isset( $_GET['entity'] ) ? sanitize_text_field( wp_unslash( $_GET['entity'] ) ) : '';
 	if ( $entity !== '' ) {
 		return do_shortcode( '[ussalmc_search]' ) . ussalmc_wiki_entity_shortcode( array( 'id' => $entity ) );
 	}
-	$out = do_shortcode( '[ussalmc_search]' );
+	$atlas_category = function_exists( 'ussalmc_atlas_category_card' ) && ! empty( $_GET['category'] );
+	$out = ! $atlas_category || ! empty( $_GET['q'] ) ? do_shortcode( '[ussalmc_search]' ) : '';
 	if ( empty( $_GET['q'] ) ) {
 		$out .= do_shortcode( '[ussalmc_categories]' );
 	}

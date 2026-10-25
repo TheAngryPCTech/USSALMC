@@ -1,3 +1,4 @@
+import { getPlanetaryAtlas } from './planetary-atlas.js';
 // routes.ts — all /v1 endpoints.
 import type { FastifyInstance } from 'fastify';
 import { config } from './config.js';
@@ -44,6 +45,11 @@ function serveEntity<T extends { source?: any; edited_by_admin?: boolean }>(ent:
 }
 
 export function registerRoutes(app: FastifyInstance) {
+  // Route-bound guard also covers encoded paths that skip the legacy prefix hook.
+  app.get('/v1/atlas', { onRequest: async (req, reply) => {
+    if (!req.client) return reply.code(401).send({ error: { code: 'unauthorized', message: 'API key required.' } });
+  } }, async () => getPlanetaryAtlas());
+
   // GET /v1/entities?type=&category=&query=&version=&sort=&limit=&offset=
   // sort: 'recent' orders by updated_at desc (newly added + refreshed entities
   // both surface); any other/absent value keeps the default alphabetical order.

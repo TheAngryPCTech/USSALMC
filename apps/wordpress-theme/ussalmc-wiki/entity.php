@@ -90,7 +90,7 @@ foreach ( $attrs as $k => $v ) {
 		<b>/ <a href="<?php echo esc_url( add_query_arg( 'category', rawurlencode( (string) $cat ), home_url( '/wiki/' ) ) ); ?>"><?php echo esc_html( strtoupper( (string) $cat ) ); ?></a> / <?php echo esc_html( $name ); ?></b>
 	</div>
 
-	<h3 class="ussalmc-entity__name"><?php echo esc_html( $name ); ?></h3>
+	<h1 class="ussalmc-entity__name"><?php echo esc_html( $name ); ?></h1>
 	<?php if ( $summary ) : ?>
 		<p class="ussalmc-entity__summary"><?php echo esc_html( $summary ); ?><?php echo ussalmc_wiki_field_actions( $entity['id'] ?? '', 'summary', $summary ); ?></p>
 	<?php endif; ?>

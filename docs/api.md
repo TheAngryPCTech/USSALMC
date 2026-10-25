@@ -582,3 +582,45 @@ Body `{ account? }`. Forwards to `/v1/trade-routes/:id/confirm`.
 
 ### `GET /info`
 `{ app, API_BASE, API_KEY_client }` — which core API and client key it uses.
+
+### Category representative images (Stellar Atlas)
+
+`GET /v1/categories` adds `image` to category nodes: `null`, or
+`{ "url": "https://…", "entity_id": "ship_400i", "entity_name": "400i" }`.
+It is selected from an existing non-removed entity in that category; primary
+images are preferred, invalid/non-HTTP(S) URLs are excluded, and a category
+without a direct image can inherit a descendant's image. It shares the existing
+category-index cache; volatile trade freshness is still computed on each call.
+Consumers should preserve an empty-image fallback, and use the returned entity
+name for attribution. No API key is exposed to the browser by the Atlas theme.
+
+### GET /v1/atlas — Planetary Atlas
+
+Authenticated, read-only projection of up to 10,000 non-removed location/system
+entities. Response: `{ nodes, truncated, coordinate_convention, geometry,
+terrain, reference_hierarchy_url }`. No API credentials are sent to the browser;
+WordPress fetches this endpoint server-side. A route-bound authentication check
+also rejects encoded requests that skip the older API URL-prefix hook.
+
+Each node has `id`, `name`, `kind` (`system|planet|moon|body|location`), nullable
+`parent_id`, `body_id`, `system_id`, `coordinates`, `image`, `summary`,
+`confidence`, `game_version`, `source`, `hierarchy_source` and `services`.
+Coordinates are `{ latitude, longitude }` in degrees, north/east positive; empty,
+non-numeric, out-of-range and explicitly non-degree values are rejected. Generic
+`position: {x,y,z}` fields are not surface coordinates. Images use existing
+HTTP(S) entity images, primary first. Hidden source origin/URL stay hidden.
+
+Hierarchy is resolved from explicit parent/body/system IDs, unambiguous exact
+names, and `located_in|part_of|orbits` relations. The wiki importer's explicit
+`<system> — On <body>` Location field is supported. Parent cycles terminate and
+ambiguous names stay unresolved. A small factual Stanton reference catalogue
+provides known planet/moon parentage when absent, labeled
+`hierarchy_source: stanton_reference`; its named worlds must already exist in
+the KB. A reference-only Stanton root can be supplied without pretending it is
+a stored entity. For example: Stanton → Hurston → Arial → HDMS-Bezdek. The
+reference supplies no surface coordinates, radii, distances, or terrain.
+
+Service filters include only explicitly recorded positive flags in `services`
+(an array or object), direct attributes, or `has_<service>` attributes:
+`trading|mining|refinery|refueling|repair|restock|medical|habitation`. Missing
+service data means unknown, not false or present.
