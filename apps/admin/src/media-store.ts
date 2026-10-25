@@ -1,3 +1,4 @@
+import { publicFetch } from './public-fetch.js';
 // media-store.ts — downloads a remote image ONCE and stores it on disk under
 // MEDIA_DIR, so every entity image is actually ours to keep: we don't
 // control starcitizen.tools or robertsspaceindustries.com, so we can't
@@ -63,7 +64,7 @@ function originalFromThumbUrl(url: string): string | null {
 }
 
 async function fetchBytes(url: string): Promise<{ buf: Buffer; contentType: string | null } | null> {
-  const res = await fetch(url, { headers: { 'User-Agent': UA } });
+  const res = await publicFetch(url, UA);
   if (!res.ok) return null;
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length === 0) return null;

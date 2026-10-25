@@ -1,3 +1,5 @@
+import { publicFetch, UnsafeScrapeUrl } from './public-fetch.js';
+
 // robots.ts — fetch + parse robots.txt and enforce it before any scrape.
 // Honors the general User-agent:* group and our own UA token. Also surfaces the
 // Cloudflare Content-Signal line for logging (ai-train=no etc.).
@@ -19,9 +21,12 @@ async function loadRobots(origin: string, ua: string) {
   let text = '';
   let contentSignal: string | null = null;
   try {
-    const res = await fetch(`${origin}/robots.txt`, { headers: { 'User-Agent': ua } });
+    const res = await publicFetch(`${origin}/robots.txt`, ua);
     if (res.ok) text = await res.text();
-  } catch { /* no robots = allow */ }
+  } catch (err) {
+    if (err instanceof UnsafeScrapeUrl) throw err;
+    // Page requests still validate destinations when robots is unavailable.
+  }
 
   // Collect rules from any group whose User-agent matches * or our UA.
   const lines = text.split('\n');

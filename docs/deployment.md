@@ -595,3 +595,22 @@ ussalmc-theme active, 1 demo page (`?page_id=5`) using the wiki shortcode.
       backfill needed for those two.
 - [x] ~~Give admin its own TLS domain~~ — done in Phase 7 (admin.ussa.space,
       COOKIE_SECURE=true), needed to make the SSO iframe actually work.
+
+## External-only scraper requests (2026-10-25)
+
+The admin scraper accepts public HTTP/HTTPS sites only. Its page, robots.txt,
+image downloads, and MediaWiki category discovery (including bulk imports) share `apps/admin/src/public-fetch.ts`.
+It rejects URL credentials, private/reserved IPs, mixed public/private DNS answers,
+and redirects to blocked destinations. Connections use the validated IP while
+retaining the hostname for TLS certificate verification. IPv6 is restricted to
+public global unicast, excluding special-purpose transition/documentation ranges.
+There is no internal-site exception or new environment variable. The admin's
+configured core-API preview client is separate from scraping.
+
+Each HTTP request has a 15-second deadline, a 5 MiB response limit and at most
+five redirects. Rebuild/restart the admin service to deploy this change. Direct
+DNS resolution and outbound TCP 80/443 access to public sites are required;
+proxy-only environments need an egress route that preserves destination validation.
+Run security regressions with `cd apps/admin && node --import tsx --test test/public-fetch.test.ts`,
+and compile with `npm run build`. This change addresses scraper SSRF; the audit's
+separate route authentication bypass still requires its own fix.
