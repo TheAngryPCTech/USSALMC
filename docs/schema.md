@@ -1416,3 +1416,28 @@ returned real results before it was registered. A live end-to-end agent
 turn (`openclaw agent -m "..."`) was in progress at write time — local
 27B-model tool-calling turns take a few minutes; see decisions-log.md for
 the completed result.
+
+### Stellar Atlas presentation
+
+No stored entity or taxonomy schema changes. The public category projection now
+includes nullable representative image metadata (`url`, `entity_id`,
+`entity_name`), derived from existing public entity images. Details and cache
+behavior are documented in `docs/api.md`.
+
+### Planetary Atlas metadata (no new tables)
+
+The Atlas reads existing generic location attributes and relations. For curated
+spatial data, an entity can record `atlas_kind` (`system`, `planet`, `moon`, or
+`body`), `parent_entity_id`/`parent_id`/`body_entity_id`/`body_id`, and
+`star_system_id`/`star_system`. A mapped location needs an identifiable body and
+numeric degree `surface_coordinates: {latitude, longitude, units: "degrees"}`
+(or the equivalent `coordinates` object/top-level latitude and longitude).
+Coordinates must use north-positive/east-positive planetocentric degrees with
+the source's zero meridian correctly reconciled. Do not copy x/y/z system
+positions into these fields. Unresolved body names or unknown coordinate frames
+must be verified before adding map positions.
+
+The public projection is described in docs/api.md. Latitude/longitude zero is a
+valid recorded value; absent coordinates stay null. Surface positions never
+come from procedurally generated terrain. Surface imagery, radii and orbital
+ephemerides are not currently modeled by this feature.

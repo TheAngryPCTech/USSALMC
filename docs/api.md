@@ -582,3 +582,53 @@ Body `{ account? }`. Forwards to `/v1/trade-routes/:id/confirm`.
 
 ### `GET /info`
 `{ app, API_BASE, API_KEY_client }` — which core API and client key it uses.
+
+### Category representative images (Stellar Atlas)
+
+`GET /v1/categories` adds `image` to category nodes: `null`, or
+`{ "url": "https://…", "entity_id": "ship_400i", "entity_name": "400i" }`.
+It is selected from an existing non-removed entity in that category; primary
+images are preferred, invalid/non-HTTP(S) URLs are excluded, and a category
+without a direct image can inherit a descendant's image. It shares the existing
+category-index cache; volatile trade freshness is still computed on each call.
+Consumers should preserve an empty-image fallback, and use the returned entity
+name for attribution. No API key is exposed to the browser by the Atlas theme.
+
+### GET /v1/atlas — Planetary Atlas
+
+Authenticated, read-only projection of up to 10,000 non-removed location/system
+entities. Response: `{ nodes, truncated, coordinate_convention, geometry,
+terrain, reference_hierarchy_url }`. No API credentials are sent to the browser;
+WordPress fetches this endpoint server-side. A route-bound authentication check
+also rejects encoded requests that skip the older API URL-prefix hook.
+
+Each node has `id`, `name`, `kind` (`system|planet|moon|body|location`), nullable
+`parent_id`, `body_id`, `system_id`, `coordinates`, `image`, `summary`,
+`confidence`, `game_version`, `source`, `hierarchy_source` and `services`.
+Coordinates are `{ latitude, longitude }` in degrees, north/east positive; empty,
+non-numeric, out-of-range and explicitly non-degree values are rejected. Generic
+`position: {x,y,z}` fields are not surface coordinates. Images use existing
+HTTP(S) entity images, primary first. Hidden source origin/URL stay hidden.
+
+Hierarchy is resolved from explicit parent/body/system IDs, unambiguous exact
+names, and `located_in|part_of|orbits` relations. The wiki importer's explicit
+`<system> — On <body>` Location field is supported. Parent cycles terminate and
+ambiguous names stay unresolved. Complete factual Stanton and Pyro reference catalogues
+provide planet/moon parentage when absent, labeled
+`hierarchy_source: stanton_reference|pyro_reference`. Missing body articles are
+represented by explicitly `reference_only` catalogue nodes; no fictitious KB
+article, surface position, or image is created. Existing KB bodies are reused,
+including alternate names (Monox/Pyro II, Bloom/Pyro III, Terminus/Pyro VI). For example: Stanton → Hurston → Arial → HDMS-Bezdek. The
+references supply no surface coordinates, radii, distances, or terrain.
+
+Service filters include only explicitly recorded positive flags in `services`
+(an array or object), direct attributes, or `has_<service>` attributes:
+`trading|mining|refinery|refueling|repair|restock|medical|habitation`. Missing
+service data means unknown, not false or present.
+
+The two complete reference rosters contain 28 planetary bodies: Stanton's
+4 planets + 12 moons and Pyro's 5 listed planets + 7 moons. Pyro IV is under
+Pyro V, matching the supplied survey index. `reference_hierarchy_urls` lists
+both survey index URLs; the original singular `reference_hierarchy_url` is
+retained for compatibility. Missing KB entries have `reference_only: true` and
+no "Open KB entry" link, coordinates, imagery, or invented descriptions.

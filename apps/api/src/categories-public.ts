@@ -21,6 +21,7 @@ import { config } from './config.js';
 import { query } from './db.js';
 
 export interface PublicCategoryNode {
+  image?: { url: string; entity_id: string; entity_name: string } | null;
   slug: string;
   display_name: string;
   description: string | null;
@@ -61,11 +62,30 @@ async function buildTree(): Promise<PublicCategoryNode[]> {
   const entityCounts = new Map<string, number>();
   for (const r of entRes.rows as any[]) if (r.category) entityCounts.set(r.category, r.n);
 
+  // One relevant image per taxonomy leaf, chosen from actual public entities.
+  // Select primary images first; retain provenance for captions/accessibility.
+  const imageRes = await query(`
+    SELECT DISTINCT ON (COALESCE(e.attributes->>'category', e.type))
+      COALESCE(e.attributes->>'category', e.type) AS category,
+      e.id, e.name, image->>'url' AS url
+    FROM entities e
+    CROSS JOIN LATERAL jsonb_array_elements(
+      CASE WHEN jsonb_typeof(e.images) = 'array' THEN e.images ELSE '[]'::jsonb END
+    ) image
+    WHERE e.status <> 'removed' AND jsonb_typeof(image->'url') = 'string'
+      AND image->>'url' ~ '^https?://'
+    ORDER BY COALESCE(e.attributes->>'category', e.type),
+      (image->>'role' = 'primary') DESC NULLS LAST, e.updated_at DESC, e.id, image->>'url'
+  `);
+  const images = new Map(imageRes.rows.map((r: any) => [r.category,
+    { url: r.url, entity_id: r.id, entity_name: r.name }]));
+
   const bySlug = new Map(rows.map((r) => [r.slug, r]));
   const nodes = new Map<string, PublicCategoryNode>();
   for (const r of rows) {
     if (r.is_group) continue; // grouping nodes are internal-only, never public
     nodes.set(r.slug, {
+      image: images.get(r.slug) ?? null,
       slug: r.slug,
       display_name: r.display_name,
       description: r.description ?? null,
@@ -89,7 +109,12 @@ async function buildTree(): Promise<PublicCategoryNode[]> {
       roots.push(node);
     }
   }
-  for (const n of nodes.values()) n.subcategory_count = n.subcategories.length;
+  function inheritImage(n: PublicCategoryNode): void {
+    for (const child of n.subcategories) inheritImage(child);
+    n.subcategory_count = n.subcategories.length;
+    n.image ??= n.subcategories.find(child => child.image)?.image ?? null;
+  }
+  for (const n of roots) inheritImage(n);
   roots.sort((a, b) => a.display_name.localeCompare(b.display_name));
   return roots;
 }

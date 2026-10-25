@@ -1,0 +1,724 @@
+/* Planetary Atlas: self-hosted 3D viewer with accessible location browser. */
+.planetary-atlas {
+  max-width: 1536px;
+  padding: 0 32px;
+}
+.map-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 22px;
+  padding: 32px 0 26px;
+}
+.map-head h1 {
+  font-family: Georgia, serif;
+  font-size: 35px;
+  font-weight: 400;
+  margin: 10px 0 8px;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+.map-head p {
+  color: #98afc9;
+  font-size: 12px;
+  margin: 0;
+  line-height: 1.8;
+}
+.concept-tag {
+  font-size: 9px;
+  border: 1px solid #314964;
+  border-radius: 4px;
+  padding: 10px 13px;
+  color: #90aac7;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.map-shell {
+  display: grid;
+  grid-template-columns: 225px minmax(0, 1fr) 275px;
+  min-height: 650px;
+  border: 1px solid #293d53;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0b1420;
+  margin-bottom: 25px;
+}
+.system-panel {
+  background: #0e1926;
+  padding: 23px 17px;
+  border-right: 1px solid #25394e;
+}
+.system-panel h2 {
+  font-size: 17px;
+  font-weight: 400;
+  margin: 12px 0 18px;
+}
+.system-panel input[type="search"] {
+  width: 100%;
+  background: #142335;
+  border: 1px solid #334d6a;
+  color: #dceaf9;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 10px;
+  margin: 0 0 23px;
+}
+.system-tree {
+  border: 1px solid #2c425c;
+  border-radius: 4px;
+  margin-bottom: 21px;
+}
+.system-tree summary {
+  padding: 13px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #b9d1ed;
+  background: #132338;
+}
+.body-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  color: #92aaca;
+  font-size: 11px;
+  padding: 12px 15px;
+  cursor: pointer;
+}
+.body-button.active {
+  background: #1b3550;
+  color: #a2ceff;
+  border-left: 2px solid #6cb4ff;
+}
+.body-button span {
+  margin-left: 9px;
+}
+.system-label {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #6e8fae;
+  margin: 20px 0 11px;
+}
+.place-button {
+  font: inherit;
+  border: 0;
+  display: block;
+  text-align: left;
+  background: none;
+  font-size: 10px;
+  line-height: 1.7;
+  width: 100%;
+  padding: 10px 4px;
+  color: #a4bedb;
+  cursor: pointer;
+}
+.place-button.active {
+  color: #86c1ff;
+}
+.place-button small {
+  display: block;
+  font-size: 8px;
+  color: #728eab;
+}
+.layer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 10px;
+  color: #9db7d4;
+  margin: 13px 0;
+}
+.layer input {
+  accent-color: #63adff;
+}
+.map-view {
+  position: relative;
+  min-width: 0;
+  min-height: 650px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #101c2a 0%, #070d15 70%);
+}
+#planetary-scene {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+#planetary-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.view-top {
+  position: absolute;
+  z-index: 2;
+  left: 24px;
+  right: 24px;
+  top: 23px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+.world-label small {
+  font-size: 8px;
+  color: #7596b9;
+  letter-spacing: 2px;
+  display: block;
+  margin-bottom: 7px;
+}
+.world-label strong {
+  font-size: 20px;
+  font-weight: 400;
+  color: #cddced;
+}
+.view-modes {
+  display: flex;
+  padding: 4px;
+  background: #101e2ede;
+  border: 1px solid #354e6a;
+  border-radius: 5px;
+  pointer-events: auto;
+}
+.view-modes button {
+  padding: 9px 13px;
+  font-size: 10px;
+  background: none;
+  color: #a8bdd5;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.view-modes button[aria-pressed="true"] {
+  background: #4b95e3;
+  color: #08182b;
+}
+.view-controls {
+  position: absolute;
+  right: 20px;
+  top: 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 3;
+}
+.view-controls button {
+  border: 1px solid #324e6c;
+  background: #101e30;
+  color: #aecceb;
+  font-size: 19px;
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.view-controls button:last-child {
+  font-size: 15px;
+}
+.view-bottom {
+  position: absolute;
+  left: 23px;
+  right: 23px;
+  bottom: 21px;
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 15px;
+  color: #7f9aba;
+  font-size: 9px;
+  line-height: 1.9;
+  pointer-events: none;
+}
+.view-bottom strong {
+  font-size: 8px;
+  font-weight: 400;
+  color: #b49c78;
+  letter-spacing: 1px;
+}
+.map-marker {
+  position: absolute;
+  z-index: 2;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: transparent;
+  color: #c1d9f4;
+  white-space: nowrap;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-shadow: 0 1px 4px #000;
+}
+.map-marker:before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #a9ceff;
+  border-radius: 50%;
+  background: #366c9f;
+  box-shadow: 0 0 0 4px #70a9ef15;
+}
+.map-marker.selected {
+  color: #e0efff;
+  background: #17314cdd;
+  padding: 9px 12px;
+  border: 1px solid #5994c9;
+  border-radius: 4px;
+}
+.map-marker.selected:before {
+  background: #9ac8ff;
+  box-shadow: 0 0 0 5px #70a9ef25;
+}
+.location-panel {
+  background: #101b29;
+  padding: 24px 20px;
+  border-left: 1px solid #2b4059;
+}
+.location-panel h2 {
+  font-family: Georgia, serif;
+  font-size: 27px;
+  font-weight: 400;
+  margin: 15px 0 8px;
+}
+.location-path {
+  font-size: 10px;
+  color: #88a6c8;
+  margin-bottom: 19px;
+}
+.location-photo {
+  width: 100%;
+  height: 145px;
+  object-fit: cover;
+  border: 1px solid #2b4059;
+  border-radius: 4px;
+}
+.location-panel > p {
+  font-size: 11px;
+  color: #99b1cd;
+  line-height: 1.9;
+  margin: 18px 0;
+}
+.location-data {
+  padding: 15px 0;
+  border-top: 1px solid #2a4059;
+  font-size: 11px;
+}
+.location-data span {
+  color: #7f9fbd;
+  font-size: 9px;
+  display: block;
+  margin-bottom: 7px;
+}
+.location-data strong {
+  font-weight: 400;
+  color: #b9cee5;
+}
+.location-open {
+  display: block;
+  background: #529ef4;
+  color: #091725;
+  border: 0;
+  text-align: center;
+  border-radius: 4px;
+  padding: 13px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  margin: 20px 0;
+}
+.location-secondary {
+  font-size: 10px;
+  color: #8bb9e9;
+  display: block;
+  text-align: center;
+  margin-bottom: 25px;
+}
+.map-empty {
+  color: #b4c8df;
+  font-size: 12px;
+  margin-top: 20px;
+}
+.map-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  color: #89a2be;
+  font-size: 10px;
+  margin: 20px 0 35px;
+}
+.map-footer span {
+  color: #b3a079;
+}
+@media (max-width: 1100px) {
+  .map-shell {
+    grid-template-columns: 195px 1fr;
+  }
+  .location-panel {
+    grid-column: 1/-1;
+    border-left: 0;
+    border-top: 1px solid #2b4059;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 28px;
+  }
+  .location-panel > .eyebrow,
+  .location-panel > h2,
+  .location-path {
+    grid-column: 1/-1;
+  }
+  .map-view {
+    min-height: 600px;
+  }
+  .location-photo {
+    height: 180px;
+    grid-row: 4/7;
+  }
+  .location-panel > p {
+    margin-top: 0;
+  }
+}
+@media (max-width: 650px) {
+  .planetary-atlas {
+    padding: 0 16px;
+  }
+  .map-head {
+    align-items: start;
+    flex-direction: column;
+    padding: 27px 0 20px;
+  }
+  .map-head h1 {
+    font-size: 31px;
+  }
+  .map-shell {
+    display: flex;
+    flex-direction: column;
+  }
+  .system-panel {
+    border-right: 0;
+    border-bottom: 1px solid #293f58;
+  }
+  .system-tree {
+    margin-bottom: 0;
+  }
+  .system-tree .body-button {
+    display: inline-block;
+    width: auto;
+  }
+  .system-panel input[type="search"] {
+    margin-bottom: 14px;
+  }
+  .system-panel .layer,
+  .system-panel .system-label,
+  .system-panel .place-button {
+    display: none;
+  }
+  .map-view {
+    min-height: 520px;
+  }
+  .view-top {
+    left: 16px;
+    right: 16px;
+  }
+  .location-panel {
+    display: block;
+  }
+  .location-photo {
+    height: 180px;
+  }
+  .map-footer {
+    flex-direction: column;
+    font-size: 9px;
+  }
+  .view-bottom {
+    left: 14px;
+    right: 14px;
+    font-size: 8px;
+  }
+  .view-modes button {
+    padding: 9px 11px;
+  }
+  .concept-tag {
+    font-size: 8px;
+  }
+}
+.planetary-atlas [hidden] {
+  display: none !important;
+}
+.stellar-atlas .content:has(.planetary-atlas) {
+  max-width: 1600px;
+  padding: 0 32px 45px;
+}
+.planetary-atlas {
+  padding: 0 !important;
+  max-width: none !important;
+}
+.planetary-atlas .map-shell {
+  height: 780px;
+}
+.planetary-atlas .system-panel,
+.planetary-atlas .location-panel {
+  overflow-y: auto;
+  min-width: 0;
+}
+.planetary-atlas h1,
+.planetary-atlas h2 {
+  color: #e3ebf7;
+}
+.planetary-atlas .map-head h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 35px;
+}
+.planetary-atlas .map-head .atlas-map-list-link {
+  font-size: 10px;
+  color: #a5c8ed;
+  padding: 10px 13px;
+  border: 1px solid #334b65;
+  border-radius: 4px;
+}
+.planetary-atlas .atlas-map-label {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  color: #8faccc;
+  margin: 14px 0 9px;
+}
+.planetary-atlas select {
+  display: block;
+  width: 100%;
+  min-height: 37px;
+  background: #142335;
+  color: #b6cce7;
+  border: 1px solid #334d6a;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 10px;
+}
+.planetary-atlas .system-tree {
+  margin-top: 15px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.planetary-atlas .body-button.moon {
+  padding-left: 30px;
+  font-size: 10px;
+}
+.planetary-atlas .body-button small {
+  display: block;
+  font-size: 8px;
+  color: #7d9abd;
+  margin-top: 3px;
+}
+.planetary-atlas #planetary-results {
+  max-height: 215px;
+  overflow-y: auto;
+}
+.planetary-atlas .place-button {
+  border-bottom: 1px solid #1f3248;
+}
+.planetary-atlas .place-button .unplaced {
+  color: #ba9f78;
+}
+.planetary-atlas .atlas-map-more {
+  background: #152c43;
+  color: #aecceb;
+  border: 1px solid #3c5878;
+  border-radius: 3px;
+  padding: 9px 11px;
+  font-size: 10px;
+  margin-top: 12px;
+  cursor: pointer;
+}
+.planetary-atlas .location-path {
+  overflow-wrap: anywhere;
+}
+.planetary-atlas .location-data strong {
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+}
+.planetary-atlas .location-data a {
+  color: #97c4f2;
+}
+.planetary-atlas .location-panel .atlas-map-disclosure {
+  font-size: 10px;
+  color: #9aafc7;
+  line-height: 1.9;
+  border-top: 1px solid #2b4059;
+  padding-top: 16px;
+}
+.planetary-atlas .map-render-status {
+  position: absolute;
+  z-index: 4;
+  bottom: 85px;
+  left: 20px;
+  right: 20px;
+  max-width: 550px;
+  padding: 13px 16px;
+  border: 1px solid #3d5573;
+  border-radius: 4px;
+  background: #0d1a2aee;
+  font-size: 11px;
+  line-height: 1.8;
+  color: #bbd0e6;
+}
+.planetary-atlas .world-label {
+  max-width: 65%;
+  overflow-wrap: anywhere;
+}
+.planetary-atlas .world-label small {
+  line-height: 1.9;
+  letter-spacing: 1px;
+}
+.planetary-atlas .view-modes {
+  flex-shrink: 0;
+}
+.planetary-atlas .map-marker:focus-visible {
+  outline: 2px solid #b0d4ff;
+}
+.planetary-atlas #planetary-count {
+  text-align: right;
+  font-size: 9px;
+  max-width: 200px;
+}
+.planetary-atlas .system-panel > h2 {
+  font-size: 20px;
+}
+.planetary-atlas .location-panel > h2 {
+  font-family: Georgia, serif;
+  font-size: 27px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+.planetary-atlas .location-open {
+  color: #081729;
+  font-weight: 600;
+}
+.planetary-atlas .location-panel .location-data strong {
+  font-weight: 400;
+}
+.planetary-atlas .map-view {
+  min-height: 0;
+}
+.planetary-atlas #planetary-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.planetary-atlas #planetary-scene canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+.planetary-atlas .view-top {
+  pointer-events: none;
+}
+.planetary-atlas .view-modes {
+  pointer-events: auto;
+}
+.planetary-atlas .view-bottom {
+  pointer-events: none;
+}
+@media (max-width: 1100px) {
+  .planetary-atlas .map-shell {
+    height: auto;
+    min-height: 650px;
+  }
+  .planetary-atlas .map-view {
+    min-height: 650px;
+  }
+  .planetary-atlas .system-panel {
+    max-height: 650px;
+  }
+  .planetary-atlas .location-panel {
+    display: block;
+    grid-column: 1/-1;
+    max-height: none;
+  }
+  .planetary-atlas .location-photo {
+    max-width: 400px;
+    height: 180px;
+  }
+  .planetary-atlas .map-head {
+    align-items: start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 650px) {
+  .stellar-atlas .content:has(.planetary-atlas) {
+    padding: 0 16px 35px;
+  }
+  .planetary-atlas .map-shell {
+    display: flex;
+    flex-direction: column;
+  }
+  .planetary-atlas .system-panel {
+    max-height: 480px;
+  }
+  .planetary-atlas .system-panel .layer,
+  .planetary-atlas .system-panel .system-label,
+  .planetary-atlas .system-panel .place-button {
+    display: flex;
+  }
+  .planetary-atlas .system-panel .place-button {
+    display: block;
+  }
+  .planetary-atlas .system-panel .layer {
+    display: inline-flex;
+    margin: 12px 14px 6px 0;
+    font-size: 9px;
+  }
+  .planetary-atlas .system-tree .body-button {
+    width: 100%;
+    display: block;
+  }
+  .planetary-atlas .system-tree {
+    max-height: 140px;
+  }
+  .planetary-atlas #planetary-results {
+    max-height: 160px;
+  }
+  .planetary-atlas .map-view {
+    min-height: 530px;
+  }
+  .planetary-atlas .view-top {
+    left: 16px;
+    right: 16px;
+  }
+  .planetary-atlas .world-label {
+    max-width: 58%;
+  }
+  .planetary-atlas .world-label strong {
+    font-size: 17px;
+  }
+  .planetary-atlas .world-label small {
+    font-size: 7px;
+  }
+  .planetary-atlas .view-modes button {
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+  .planetary-atlas .view-bottom {
+    align-items: start;
+    flex-direction: column;
+  }
+  .planetary-atlas #planetary-count {
+    text-align: left;
+    max-width: 100%;
+  }
+  .planetary-atlas .map-head h1 {
+    font-size: 30px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .planetary-atlas * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

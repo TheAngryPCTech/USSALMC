@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 get_header();
 ?>
-<div class="content ussalmc-page">
+<div class="content ussalmc-page<?php echo is_page( 'wiki' ) ? ' atlas-wiki-page' : ''; ?>">
 	<?php
 	while ( have_posts() ) :
 		the_post();

@@ -1,0 +1,1056 @@
+/* Stellar Atlas: quiet presentation shared by the homepage and KB pages. */
+body.stellar-atlas {
+  --void: #090f16;
+  --panel: #0d151f;
+  --panel-raised: #141e2b;
+  --line: #24303f;
+  --text: #e9edf3;
+  --text-dim: #a0afc2;
+  --text-faint: #8597ae;
+  --clip-panel: none;
+  --clip-chip: none;
+  --clip-btn: none;
+  background: var(--void);
+  font-family: Inter, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+}
+.stellar-atlas::before,
+.stellar-atlas::after {
+  display: none;
+}
+.stellar-atlas a:hover {
+  text-decoration: none;
+}
+.stellar-atlas :focus-visible {
+  outline: 2px solid #6bb8ff;
+  outline-offset: 4px;
+}
+.stellar-atlas .app {
+  display: block;
+}
+.stellar-atlas .main {
+  margin: 0;
+  padding: 0;
+  min-height: 65vh;
+  display: block;
+}
+.stellar-atlas .content {
+  max-width: 1360px;
+  margin: auto;
+  padding: 42px 42px 60px;
+}
+.stellar-atlas h1,
+.stellar-atlas h2,
+.stellar-atlas h3 {
+  font-family: Inter, Arial, sans-serif;
+  letter-spacing: normal;
+}
+.stellar-atlas button,
+.stellar-atlas input,
+.stellar-atlas select {
+  font: inherit;
+}
+.stellar-atlas a {
+  color: inherit;
+}
+.stellar-atlas p {
+  color: var(--text-dim);
+}
+.atlas-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.atlas-skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 999;
+  transform: translateY(-150%);
+  background: #529ef4;
+  color: #09101a !important;
+  padding: 12px;
+}
+.atlas-skip:focus {
+  transform: none;
+}
+.atlas-header {
+  border-bottom: 1px solid #1f2934;
+  background: #090f16;
+}
+.atlas-header__inner {
+  max-width: 1360px;
+  margin: auto;
+  min-height: 96px;
+  padding: 16px 42px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+.atlas-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-right: auto;
+}
+.atlas-brand img {
+  width: 27px;
+  height: 42px;
+  object-fit: contain;
+}
+.atlas-brand strong {
+  font-family: Rajdhani, Arial, sans-serif;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+.atlas-brand__dot {
+  display: none;
+}
+.atlas-brand small {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  color: #8797ab;
+  margin-top: 5px;
+  text-transform: uppercase;
+}
+.atlas-nav {
+  display: flex;
+  gap: 28px;
+  font-size: 12px;
+  color: #a5b0c1;
+}
+.atlas-nav a {
+  padding: 24px 0;
+  position: relative;
+  white-space: nowrap;
+}
+.atlas-nav a:hover {
+  color: #e9edf3;
+}
+.atlas-nav [aria-current="page"] {
+  color: #62afff;
+}
+.atlas-nav [aria-current="page"]:after {
+  content: "";
+  position: absolute;
+  height: 2px;
+  background: #62afff;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+.atlas-account {
+  font-size: 12px;
+  color: #b8c6d8 !important;
+  margin-left: 24px;
+  white-space: nowrap;
+}
+.atlas-account span {
+  color: #6bb8ff;
+  margin-left: 8px;
+}
+.stellar-atlas .atlas-home {
+  padding-top: 0;
+}
+.atlas-hero {
+  padding: 66px 0 52px;
+  position: relative;
+  border-bottom: 1px solid #23303e;
+  overflow: hidden;
+}
+.atlas-eyebrow {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #7db5ec;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.atlas-hero h1 {
+  font-family: Georgia, serif;
+  font-size: 56px;
+  line-height: 1.12;
+  letter-spacing: -1.6px;
+  margin: 22px 0 18px;
+  font-weight: 400;
+  position: relative;
+  z-index: 1;
+}
+.atlas-hero h1 em {
+  color: #a2b5cf;
+  font-weight: 400;
+}
+.atlas-hero > p {
+  font-size: 14px;
+  line-height: 1.8;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0;
+}
+.atlas-hero:before {
+  content: "";
+  position: absolute;
+  width: 450px;
+  height: 400px;
+  right: -140px;
+  top: 30px;
+  border: 1px solid #1a3048;
+  border-radius: 50%;
+  transform: rotate(-25deg);
+  pointer-events: none;
+}
+.atlas-hero:after {
+  content: "";
+  position: absolute;
+  width: 400px;
+  height: 280px;
+  right: -120px;
+  top: 80px;
+  border: 1px solid #172737;
+  border-radius: 50%;
+  transform: rotate(-45deg);
+  pointer-events: none;
+}
+.atlas-hero__coordinate {
+  position: absolute;
+  right: 10px;
+  top: 218px;
+  color: #819ab7;
+  letter-spacing: 3px;
+  font-size: 9px;
+  text-align: right;
+  line-height: 2.3;
+}
+.atlas-search {
+  display: flex;
+  align-items: center;
+  max-width: 745px;
+  min-height: 56px;
+  margin: 28px 0 0;
+  position: relative;
+  z-index: 1;
+  background: #141e2b;
+  border: 1px solid #35465a;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.atlas-search__icon {
+  padding-left: 18px;
+  color: #8bb5df;
+  font-size: 25px;
+}
+.atlas-search input {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #dae6f5 !important;
+  font-size: 13px;
+  width: 100%;
+  min-width: 0;
+  padding: 16px !important;
+  border-radius: 0;
+}
+.atlas-search input::placeholder {
+  color: #94a6bd;
+}
+.atlas-search button {
+  align-self: stretch;
+  border: 0;
+  background: #529ef4;
+  color: #081221;
+  padding: 0 26px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.atlas-search button:hover {
+  background: #7db8fc;
+}
+.atlas-hero__links {
+  display: flex;
+  gap: 22px;
+  font-size: 10px;
+  margin-top: 19px;
+  color: #9cacc1;
+}
+.atlas-hero__links a {
+  color: #92bde7;
+}
+.atlas-home__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  gap: 44px;
+  margin-top: 41px;
+}
+.atlas-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 15px;
+}
+.atlas-section-heading h2 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 27px;
+  letter-spacing: -0.4px;
+  margin: 10px 0 0;
+}
+.atlas-section-heading > a {
+  font-size: 10px;
+  white-space: nowrap;
+  color: #8cb4df;
+  margin-bottom: 4px;
+}
+.atlas-category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px 18px;
+}
+.atlas-category {
+  border: 1px solid #24303f;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #0d151f;
+  transition:
+    transform 0.18s,
+    border-color 0.18s;
+}
+.atlas-category:hover {
+  border-color: #5b8ab7;
+  transform: translateY(-3px);
+}
+.atlas-category__visual {
+  height: 160px;
+  position: relative;
+  background: #101b27;
+  overflow: hidden;
+}
+.atlas-category__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.atlas-category__visual:after {
+  content: "";
+  position: absolute;
+  inset: 60% 0 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  pointer-events: none;
+}
+.atlas-category__credit {
+  position: absolute;
+  z-index: 1;
+  bottom: 10px;
+  left: 12px;
+  right: 12px;
+  font-size: 9px;
+  letter-spacing: 0.3px;
+  color: #e0e8ef;
+  text-shadow: 0 1px 3px #000;
+}
+.atlas-category__placeholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 40px;
+  color: #647b96;
+}
+.atlas-category__copy {
+  padding: 17px 14px 18px;
+}
+.atlas-category__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.atlas-category__heading h3 {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 6px;
+}
+.atlas-category__heading > span {
+  color: #78b5f3;
+}
+.atlas-category__copy p {
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 0;
+  min-height: 36px;
+}
+.atlas-category__meta {
+  font-size: 10px;
+  color: #8197b1;
+  display: block;
+  margin-top: 9px;
+}
+.atlas-recent {
+  padding-left: 25px;
+  border-left: 1px solid #263242;
+}
+.atlas-recent .atlas-section-heading h2 {
+  font-size: 25px;
+}
+.atlas-recent__intro {
+  font-size: 11px;
+  line-height: 1.8;
+  margin-bottom: 19px;
+}
+.atlas-recent-entry {
+  display: flex;
+  gap: 13px;
+  padding: 18px 0;
+  border-top: 1px solid #23303f;
+}
+.atlas-recent-entry > img,
+.atlas-recent-entry__placeholder {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 3px;
+  background: #172334;
+  flex-shrink: 0;
+}
+.atlas-recent-entry__placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  color: #91a9c2;
+}
+.atlas-recent-entry small {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 8px;
+  color: #8ba8ca;
+  margin-bottom: 7px;
+}
+.atlas-recent-entry strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.atlas-recent-entry time {
+  display: block;
+  font-size: 9px;
+  color: #91a4bb;
+  margin-top: 7px;
+}
+.atlas-note {
+  border-top: 1px solid #263242;
+  margin-top: 4px;
+  padding-top: 25px;
+}
+.atlas-note p {
+  font-family: Georgia, serif;
+  font-style: italic;
+  color: #a1b6cc;
+  font-size: 18px;
+  line-height: 1.6;
+}
+.atlas-note a {
+  color: #8ab8e5;
+  font-size: 10px;
+}
+.atlas-tools {
+  margin-top: 45px;
+  padding: 27px 0 0;
+  border-top: 1px solid #263242;
+  display: flex;
+  gap: 28px;
+  align-items: center;
+}
+.atlas-tools > div {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.atlas-tools a {
+  font-size: 11px;
+  color: #91b6df;
+}
+.atlas-tools .atlas-eyebrow {
+  font-size: 8px;
+  white-space: nowrap;
+}
+.atlas-footer {
+  max-width: 1360px;
+  margin: auto;
+  padding: 27px 42px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  justify-content: space-between;
+  border-top: 1px solid #1b2734;
+  color: #91a4bc;
+  font-size: 10px;
+}
+.atlas-footer__brand {
+  color: #adbed2 !important;
+  letter-spacing: 2px;
+}
+.atlas-footer__brand span {
+  font-size: 9px;
+}
+.atlas-footer p {
+  font-size: 10px;
+  margin: 0;
+}
+.atlas-footer > a:last-child {
+  color: #9fbedf;
+}
+/* Directory, ship/category listings, search and detail pages. */
+.stellar-atlas .ussalmc-search {
+  max-width: none;
+  margin: 0 0 36px;
+}
+.stellar-atlas .ussalmc-search .atlas-search {
+  margin: 0;
+  max-width: 800px;
+}
+.atlas-directory .atlas-category-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.atlas-directory .atlas-section-heading p {
+  font-size: 13px;
+}
+.atlas-empty {
+  border: 1px solid #2d3e52;
+  background: #111c29;
+  padding: 28px;
+  border-radius: 5px;
+}
+.atlas-empty a {
+  color: #90bfff;
+}
+.stellar-atlas .page-head {
+  margin-bottom: 30px;
+}
+.stellar-atlas .page-head h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 38px;
+}
+.atlas-breadcrumb {
+  display: flex;
+  gap: 12px;
+  color: #94a8c0;
+  font-size: 11px;
+  margin: 0 0 26px;
+}
+.atlas-breadcrumb a {
+  color: #9fc8f2;
+}
+.atlas-listing-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: end;
+  margin-bottom: 32px;
+}
+.atlas-listing-head h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 48px;
+  line-height: 1.2;
+  letter-spacing: -1px;
+  margin: 13px 0;
+}
+.atlas-listing-head p {
+  font-size: 13px;
+  max-width: 580px;
+  margin: 0;
+}
+.atlas-count {
+  font-size: 11px;
+  color: #9eb4ce;
+  white-space: nowrap;
+  padding-bottom: 5px;
+}
+.atlas-filter {
+  display: flex;
+  gap: 14px;
+  align-items: end;
+  padding: 20px 0;
+  border-top: 1px solid #253245;
+  border-bottom: 1px solid #253245;
+  margin-bottom: 22px;
+}
+.atlas-filter label {
+  display: block;
+  font-size: 10px;
+  color: #a9bad0;
+}
+.atlas-filter label:first-of-type {
+  flex: 1;
+}
+.atlas-filter input,
+.atlas-filter select {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  min-height: 44px;
+  background: #111d2b;
+  color: #e5edf6;
+  border: 1px solid #34465e;
+  border-radius: 4px;
+  padding: 10px 14px;
+}
+.atlas-filter button,
+.atlas-button {
+  background: #529ef4;
+  border: 1px solid #529ef4;
+  border-radius: 4px;
+  color: #07111d !important;
+  min-height: 44px;
+  padding: 10px 21px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.atlas-filter > a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: #a6bed9;
+  padding: 0 10px;
+}
+.atlas-listing-meta {
+  font-size: 11px;
+  color: #94a9c2;
+  margin: 0 0 23px;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+.atlas-entity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.atlas-entity-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #253246;
+  background: #0d151f;
+  border-radius: 5px;
+  transition:
+    border-color 0.18s,
+    transform 0.18s;
+}
+.atlas-entity-card:hover {
+  border-color: #6a9bcc;
+  transform: translateY(-3px);
+}
+.atlas-entity-card__visual {
+  height: 210px;
+  position: relative;
+  overflow: hidden;
+  background: #111d29;
+}
+.atlas-entity-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s;
+}
+.atlas-entity-card:hover img {
+  transform: scale(1.025);
+}
+.atlas-entity-card__placeholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: #8ba4c1;
+  font-size: 12px;
+}
+.atlas-entity-card__copy {
+  padding: 21px 21px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.atlas-entity-card__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.atlas-entity-card h2 {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+}
+.atlas-entity-card__heading > span {
+  color: #83b4e5;
+}
+.atlas-entity-card__category {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.3px;
+  color: #8da6c4;
+  margin: 8px 0 15px;
+}
+.atlas-entity-card__stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  border-top: 1px solid #243244;
+  padding-top: 14px;
+  margin-top: auto;
+}
+.atlas-entity-card__stats span {
+  display: flex;
+  flex-direction: column;
+  color: #e5edf7;
+  font-size: 12px;
+}
+.atlas-entity-card__stats small {
+  font-size: 9px;
+  color: #90a5c0;
+  margin-bottom: 3px;
+}
+.atlas-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  border-top: 1px solid #263448;
+  margin-top: 38px;
+  padding-top: 28px;
+  font-size: 12px;
+}
+.atlas-pagination a {
+  border: 1px solid #3b516b;
+  padding: 8px 18px;
+  border-radius: 4px;
+  color: #afcfee;
+}
+.atlas-pagination span {
+  color: #97acc6;
+}
+.atlas-back {
+  display: inline-block;
+  color: #9bbfe7 !important;
+  margin: 22px 0;
+  font-size: 12px;
+}
+.stellar-atlas .ussalmc-result {
+  border: 0;
+  border-bottom: 1px solid #29384a;
+  border-radius: 0;
+  clip-path: none;
+  padding: 24px 0;
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+.stellar-atlas .ussalmc-result:hover {
+  background: #0e1824;
+}
+.stellar-atlas .ussalmc-result__name {
+  font-size: 22px;
+  margin: 10px 0;
+  font-weight: 500;
+}
+.stellar-atlas .ussalmc-result__sum {
+  font-size: 13px;
+  max-width: 850px;
+  line-height: 1.8;
+}
+.stellar-atlas .ussalmc-entity {
+  padding: 30px;
+  background: #0d151f;
+  border: 1px solid #26364c;
+  border-radius: 6px;
+  clip-path: none;
+}
+.stellar-atlas .ussalmc-entity .corner {
+  display: none;
+}
+.stellar-atlas .ussalmc-entity__name {
+  font-size: 32px;
+}
+.stellar-atlas .ussalmc-entity__body {
+  max-width: 800px;
+  font-size: 15px;
+  line-height: 1.9;
+}
+.stellar-atlas .ussalmc-entity__hero {
+  max-width: 760px;
+  border-radius: 4px;
+}
+.stellar-atlas .ussalmc-entity__meta .badge {
+  background: #152234;
+  border: 0;
+  border-radius: 3px;
+  font-size: 10px;
+}
+.stellar-atlas .btn-hud {
+  clip-path: none;
+  border-radius: 4px;
+}
+.stellar-atlas .ussalmc-trade-browse {
+  overflow-wrap: anywhere;
+}
+.stellar-atlas .atlas-wiki-page .page-head {
+  display: none;
+}
+@media (min-width: 1600px) {
+  .atlas-category__visual {
+    height: 180px;
+  }
+}
+@media (max-width: 1100px) {
+  .atlas-header__inner {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .atlas-nav {
+    gap: 22px;
+  }
+  .atlas-account {
+    margin-left: 0;
+  }
+  .atlas-home__body {
+    grid-template-columns: 1fr;
+  }
+  .atlas-recent {
+    border: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 24px;
+  }
+  .atlas-recent > .atlas-section-heading,
+  .atlas-recent__intro,
+  .atlas-recent > .atlas-empty,
+  .atlas-note {
+    grid-column: 1/-1;
+  }
+  .atlas-hero__coordinate {
+    display: none;
+  }
+  .atlas-directory .atlas-category-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .atlas-filter {
+    flex-wrap: wrap;
+  }
+  .atlas-entity-card__visual {
+    height: 170px;
+  }
+}
+@media (max-width: 760px) {
+  .stellar-atlas .content {
+    padding: 30px 22px 45px;
+  }
+  .stellar-atlas .atlas-home {
+    padding-top: 0;
+  }
+  .atlas-header__inner {
+    padding: 20px 22px;
+    gap: 10px;
+  }
+  .atlas-nav {
+    order: 3;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 11px;
+    gap: 12px;
+  }
+  .atlas-nav a {
+    padding: 14px 0 8px;
+  }
+  .atlas-brand small {
+    font-size: 7px;
+    letter-spacing: 0.6px;
+  }
+  .atlas-brand strong {
+    font-size: 26px;
+  }
+  .atlas-account {
+    font-size: 11px;
+  }
+  .atlas-hero {
+    padding: 40px 0 35px;
+  }
+  .atlas-hero h1 {
+    font-size: 42px;
+  }
+  .atlas-hero > p {
+    font-size: 12px;
+  }
+  .atlas-hero:before,
+  .atlas-hero:after {
+    opacity: 0.4;
+  }
+  .atlas-search button {
+    padding: 0 18px;
+  }
+  .atlas-search input {
+    font-size: 11px;
+    padding: 14px 10px !important;
+  }
+  .atlas-search__icon {
+    padding-left: 12px;
+  }
+  .atlas-hero__links {
+    gap: 16px;
+  }
+  .atlas-category-grid,
+  .atlas-directory .atlas-category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .atlas-category__visual {
+    height: 130px;
+  }
+  .atlas-category__copy {
+    padding: 15px 12px;
+  }
+  .atlas-category__copy p {
+    font-size: 10px;
+  }
+  .atlas-category__heading h3 {
+    font-size: 14px;
+  }
+  .atlas-category__meta {
+    font-size: 9px;
+  }
+  .atlas-section-heading h2 {
+    font-size: 24px;
+  }
+  .atlas-home__body {
+    margin-top: 30px;
+    gap: 40px;
+  }
+  .atlas-tools {
+    flex-wrap: wrap;
+    gap: 17px;
+  }
+  .atlas-footer {
+    padding: 24px 22px;
+    gap: 16px;
+    align-items: start;
+    flex-direction: column;
+  }
+  .atlas-recent-entry > img,
+  .atlas-recent-entry__placeholder {
+    width: 48px;
+    height: 48px;
+  }
+  .atlas-listing-head h1 {
+    font-size: 37px;
+  }
+  .atlas-listing-head {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .atlas-filter label:first-of-type {
+    flex-basis: 100%;
+  }
+  .atlas-filter label {
+    flex: 1;
+    min-width: 120px;
+  }
+  .atlas-filter > a {
+    padding: 0 3px;
+  }
+  .atlas-entity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+  }
+  .atlas-entity-card__visual {
+    height: 145px;
+  }
+  .atlas-entity-card__copy {
+    padding: 15px 12px;
+  }
+  .atlas-entity-card h2 {
+    font-size: 16px;
+  }
+  .atlas-entity-card__stats {
+    gap: 10px;
+  }
+  .atlas-entity-card__stats span {
+    font-size: 10px;
+  }
+  .atlas-pagination {
+    gap: 14px;
+    font-size: 11px;
+  }
+  .atlas-pagination a {
+    padding: 7px 12px;
+  }
+  .stellar-atlas .ussalmc-entity {
+    padding: 20px 16px;
+  }
+  .stellar-atlas .ussalmc-entity__name {
+    font-size: 26px;
+  }
+  .atlas-desktop-break {
+    display: none;
+  }
+}
+@media (max-width: 380px) {
+  .atlas-category-grid,
+  .atlas-entity-grid,
+  .atlas-directory .atlas-category-grid {
+    grid-template-columns: 1fr;
+  }
+  .atlas-category__visual,
+  .atlas-entity-card__visual {
+    height: 190px;
+  }
+  .atlas-nav {
+    font-size: 10px;
+  }
+  .atlas-search button {
+    padding: 0 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stellar-atlas * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+.stellar-atlas .atlas-section-heading h1 {
+  font-family: Georgia, serif;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1.3;
+  margin: 10px 0;
+}
+.stellar-atlas .ussalmc-entity__name {
+  line-height: 1.25;
+}
+.atlas-listing-head h1 {
+  color: #e9edf3;
+}
+.stellar-atlas .atlas-recent-entry:hover strong {
+  color: #9acbff;
+}
+.stellar-atlas .ussalmc-search .atlas-section-heading h1 {
+  color: #e9edf3;
+}

@@ -1,27 +1,18 @@
 <?php
 /**
- * USSALMC Theme — functions.
- * HUD / corporate-portal identity for the USSA Lore Master Core.
- *
- * Responsibilities:
- *  - Load fonts (Aquire @font-face + Rajdhani fallback, Inter, Space Mono).
- *  - Load the design-system stylesheet (style.css).
- *  - Register/sync the Elementor Global Colors + Typography Kit (inc/elementor-kit.php)
- *    so theme-inheriting plugin widgets pick up the exact palette with no plugin changes.
- *  - Provide the [ussalmc_dashboard] shortcode that assembles the HUD dashboard
- *    (rail + topbar + instrument cluster + module grid + placeholder panels),
- *    using the portal plugin's real widgets when Elementor renders them.
- *  - Register the theme's wiki template-override directory so the wiki plugin's
- *    entity/search/category output inherits this visual language.
+ * Stellar Atlas theme: original USSA identity, knowledge-first homepage,
+ * shared search/category/entity views, and existing Elementor integration.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'USSALMC_THEME_VERSION', '0.4.6' );
+define( 'USSALMC_THEME_VERSION', '0.5.0' );
 
 require_once get_stylesheet_directory() . '/inc/elementor-kit.php';
+require_once get_stylesheet_directory() . '/inc/atlas.php';
+require_once get_stylesheet_directory() . '/inc/planetary-atlas.php';
 require_once get_stylesheet_directory() . '/inc/dashboard.php';
 require_once get_stylesheet_directory() . '/inc/placeholders.php';
 
@@ -56,6 +47,9 @@ add_action(
 			null
 		);
 		wp_enqueue_style( 'ussalmc-theme', get_stylesheet_uri(), array( 'ussalmc-fonts' ), USSALMC_THEME_VERSION );
+		wp_enqueue_style( 'ussalmc-planetary', get_stylesheet_directory_uri() . '/assets/planetary-atlas.css', array( 'ussalmc-atlas' ), USSALMC_THEME_VERSION );
+		wp_enqueue_script( 'ussalmc-planetary', get_stylesheet_directory_uri() . '/assets/js/planetary-atlas.js', array(), USSALMC_THEME_VERSION, true );
+		wp_enqueue_style( 'ussalmc-atlas', get_stylesheet_directory_uri() . '/assets/atlas.css', array( 'ussalmc-theme' ), USSALMC_THEME_VERSION );
 
 		// Inline image lightbox for wiki entity pages (opens images in an
 		// on-page overlay instead of navigating away / opening a new tab).
@@ -73,3 +67,18 @@ add_action(
 function ussalmc_theme_asset( string $file ): string {
 	return get_stylesheet_directory_uri() . '/assets/' . ltrim( $file, '/' );
 }
+
+/** Give category tabs a useful title without changing stored WordPress pages. */
+add_filter( 'document_title_parts', function ( $parts ) {
+	if ( is_front_page() ) { $parts['title'] = 'Stellar Atlas'; }
+	elseif ( is_page( 'wiki' ) && isset( $_GET['category'] ) && is_string( $_GET['category'] ) ) {
+		$slug = sanitize_text_field( wp_unslash( $_GET['category'] ) );
+		$parts['title'] = $slug === 'ship' ? 'Ships' : ussalmc_atlas_category_label( $slug );
+	}
+	return $parts;
+} );
+
+// Modules self-host their pinned Three.js imports; no CDN/global import map.
+add_filter( 'script_loader_tag', function ( $tag, $handle, $src ) {
+	return $handle === 'ussalmc-planetary' ? wp_get_script_tag( array( 'type' => 'module', 'src' => $src, 'id' => 'ussalmc-planetary-js' ) ) : $tag;
+}, 10, 3 );

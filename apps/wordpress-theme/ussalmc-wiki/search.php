@@ -1,34 +1,15 @@
-<?php
-/**
- * USSALMC Theme override — wiki SEARCH.
- * Overrides ussalmc-wiki/templates/search.php. Vars: $query, $results, $error.
- */
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
-$action = esc_url( home_url( '/wiki/' ) );
-?>
+<?php if ( ! defined( 'ABSPATH' ) ) { exit; } ?>
 <div class="ussalmc-search">
-	<form class="ussalmc-search__form" method="get" action="<?php echo $action; ?>">
-		<input class="ussalmc-search__input" type="search" name="q" value="<?php echo esc_attr( $query ); ?>" placeholder="Search the knowledge base…" aria-label="Search">
-		<button class="btn-hud primary ussalmc-search__btn" type="submit">SEARCH</button>
-	</form>
-
+	<?php ussalmc_atlas_search_form( $query, 'atlas-wiki-search' ); ?>
 	<?php if ( ! empty( $error ) ) : ?>
-		<div class="ussalmc-entity ussalmc-error">USSALMC: <?php echo esc_html( $error ); ?></div>
+		<p class="atlas-empty" role="status">Search is temporarily unavailable. Please try again shortly.</p>
 	<?php elseif ( $query !== '' && empty( $results ) ) : ?>
-		<p class="ussalmc-content">No results for “<?php echo esc_html( $query ); ?>”.</p>
+		<div class="atlas-empty"><h2>No matches for “<?php echo esc_html( $query ); ?>”.</h2><p>Try a ship name, a location, or a broader term.</p><a href="<?php echo esc_url( ussalmc_atlas_url() ); ?>">Browse all categories ↗︎</a></div>
 	<?php elseif ( ! empty( $results ) ) : ?>
-		<div class="ussalmc-entity__breadcrumb" style="margin-bottom:12px"><?php echo esc_html( count( $results ) ); ?> RESULTS FOR <b><?php echo esc_html( $query ); ?></b></div>
-		<?php foreach ( $results as $r ) :
-			$href = add_query_arg( 'entity', rawurlencode( $r['id'] ?? '' ), home_url( '/wiki/' ) );
-			?>
-			<a class="ussalmc-result" href="<?php echo esc_url( $href ); ?>">
-				<div>
-					<div class="ussalmc-result__name"><?php echo esc_html( $r['name'] ?? $r['id'] ?? '—' ); ?></div>
-					<?php if ( ! empty( $r['summary'] ) ) : ?><div class="ussalmc-result__sum"><?php echo esc_html( wp_trim_words( $r['summary'], 24 ) ); ?></div><?php endif; ?>
-				</div>
-				<div class="ussalmc-result__score"><?php echo esc_html( number_format( (float) ( $r['score'] ?? 0 ), 3 ) ); ?></div>
+		<div class="atlas-section-heading"><h1>Results for “<?php echo esc_html( $query ); ?>”</h1><span><?php echo esc_html( count( $results ) ); ?> matches</span></div>
+		<?php foreach ( $results as $r ) : ?>
+			<a class="ussalmc-result" href="<?php echo esc_url( ussalmc_atlas_url( array( 'entity' => $r['id'] ?? '' ) ) ); ?>">
+				<div><span class="atlas-eyebrow"><?php echo esc_html( ussalmc_atlas_category_label( $r['type'] ?? '' ) ); ?></span><h3 class="ussalmc-result__name"><?php echo esc_html( $r['name'] ?? 'Untitled entry' ); ?></h3><?php if ( ! empty( $r['summary'] ) ) : ?><p class="ussalmc-result__sum"><?php echo esc_html( wp_trim_words( $r['summary'], 32 ) ); ?></p><?php endif; ?></div><span aria-hidden="true">↗︎</span>
 			</a>
 		<?php endforeach; ?>
 	<?php endif; ?>

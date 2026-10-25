@@ -614,3 +614,108 @@ proxy-only environments need an egress route that preserves destination validati
 Run security regressions with `cd apps/admin && node --import tsx --test test/public-fetch.test.ts`,
 and compile with `npm run build`. This change addresses scraper SSRF; the audit's
 separate route authentication bypass still requires its own fix.
+
+## Stellar Atlas homepage and Ships browser
+
+The existing `[ussalmc_dashboard]` front-page shortcode now renders the approved
+search-first Stellar Atlas layout. The original logo files are unchanged. All
+category, search, ship/entity, and trade-route URLs continue to use `/wiki/`.
+Ships use `/wiki/?category=ship`, with name filtering (`filter`), natural-name
+sorting (`sort=az|za`) and 24 entries per page (`kb_page`). Filtering occurs
+before pagination across the fetched category, including existing subcategories.
+Blank photos get a quiet fallback; absent specs and nonpositive USD pledge
+prices are omitted. The mining tool is reachable without creating a WP page at
+`/wiki/?tool=sig-ident` and preserves that route when submitting its form.
+
+The homepage uses six existing taxonomy categories and editorial images from
+actual KB entity IDs (400i, Laranite, Area18, Greatsword, Banu, and Prospector).
+These are references, not copied image assets. Guide imagery deliberately uses
+the Prospector mining ship, as approved in the mockup. If an editorial entity
+has no valid image, the category's representative image is used; otherwise an
+explicit missing-image state is shown. Recent entries use their own images and
+real `updated_at` values. Only successful image lookups (5 minutes) and recent
+lists (1 minute) are cached by WordPress. Live trade freshness is never replaced
+by a cached timestamp or a decorative live indicator.
+
+Deploy the updated wiki plugin and theme directories together, preserving their
+existing mount paths and permissions. Rebuild/recreate the API for the additive
+category image metadata. Existing WordPress content, users and media volumes do
+not need recreation or `wp-init.sh`; do not reset or reimport production data.
+The theme and plugin version are 0.5.0; purge any external page/CDN cache after
+release. Old plugin templates retain their default global search outside Atlas.
+
+Validation: API TypeScript build, PHP lint on the theme/wiki plugin, and a real
+local WordPress + PostgreSQL/API browser run using a snapshot of public KB
+content (236 ships). The smoke test expects a populated local site and
+`apps/admin` development dependencies with Playwright Chromium installed:
+
+```sh
+ATLAS_PREVIEW_URL=http://localhost:8093 node apps/wordpress-theme/tests/atlas-browser.mjs
+```
+
+This verifies navigation, unchanged-logo asset reference, paging, filtering,
+entity detail, empty results, sorting, page clamping, directory/search/tool
+routes, and horizontal layout at 390, 768, and 1440 pixels. Local preview
+containers and snapshot files are development artifacts, not production data.
+
+## Planetary Atlas locations tool
+
+The new `[ussalmc_planetary_atlas]` shortcode is available in the theme. It is
+also reachable through `/wiki/?tool=locations` and `/wiki/?category=location`.
+The existing directory remains accessible at
+`/wiki/?category=location&view=list`. Body/location selection uses shareable
+`body=<entity_id>&place=<entity_id>` parameters. The header's Locations link and
+homepage Locations card lead to the explorer; existing entity URLs are retained.
+
+Deploy the API, wiki plugin and theme changes together. Rebuild/recreate the API
+container, sync theme/plugin mounts, and purge any page/CDN cache. No database
+migration, secret, production re-seed or WordPress page creation is required.
+The existing logo files are unchanged. The frontend never sees the API key.
+
+Three.js 0.180.0 and OrbitControls are vendored with their MIT license under
+`assets/vendor/three`. Files were checked against the npm tarball's SHA-512
+integrity; OrbitControls has only its import redirected to the local module.
+They load lazily on an Atlas page, without a runtime CDN or import map. The
+location browser/details work when WebGL is unavailable. With JavaScript off,
+the page links to the existing server-rendered directory.
+
+The globe surface, world sizes and system layout are explicitly illustrative,
+not navigationally accurate. Only valid recorded degree coordinates on a known
+body become pins. Unassigned or unpositioned records remain searchable. The
+Stanton and Pyro planet/moon reference hierarchies is documented in docs/api.md;
+no Cornerstone code, coordinates, textures or location dataset is copied.
+
+Checks (from repository root, with API/admin dev dependencies installed):
+
+```sh
+npm --prefix apps/api run build
+node --import ./apps/api/node_modules/tsx/dist/loader.mjs --test apps/api/test/planetary-atlas.test.ts
+node --test apps/wordpress-theme/tests/planetary-model.test.mjs
+# Local configured WP/API and migrated disposable DB; never production:
+ATLAS_TEST_DATABASE=atlas_preview node apps/wordpress-theme/tests/planetary-browser.mjs
+```
+
+The browser test creates/removes clearly named fixtures only in a database
+explicitly named `atlas_preview` or `test_*`. It verifies the real WP/API/DB
+path, complete ancestry, zero-coordinate pins, layers, filtering, system/globe
+drilldown, mobile/tablet/desktop layout, safe embedded JSON, WebGL failure and
+no-JS directory access. A Playwright Chromium installation is required. No
+production records are changed by preview or validation.
+
+### Release scope / remaining coverage
+
+This branch implements the WordPress Stellar Atlas shell/homepage and the
+Planetary Atlas viewer/API. It is not a complete, surveyed universe database.
+The globe can display any classified KB body; Stanton and Pyro have complete authored planet/moon reference hierarchies
+matching the supplied survey catalogue (28 bodies across the two systems).
+Other systems depend on recorded relationships.
+Unknown coordinates/services remain unknown, and surface terrain and system
+layouts remain illustrative. Accurate surface maps, game-derived textures,
+complete system catalogues and ephemerides are not included.
+
+The separately reviewed manufacturer/role and commodities/trade submission
+screens are design prototypes, not production implementations in this branch.
+The existing trade backend and gated submission flow are unchanged. The current
+ship category has a restyled generic listing; its manufacturer/role workflow
+still needs implementation. Deployers should not assume those prototypes are
+wired into the running theme.
