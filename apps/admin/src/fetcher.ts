@@ -1,3 +1,4 @@
+import { publicFetch } from './public-fetch.js';
 // fetcher.ts — polite fetching with robots enforcement, plus category/sitemap
 // discovery for applying a template across a whole category.
 
@@ -23,7 +24,7 @@ export async function fetchPage(url: string): Promise<FetchResult> {
     return { ok: false, status: 0, html: '', blocked: verdict.reason };
   }
   await polite();
-  const res = await fetch(url, { headers: { 'User-Agent': UA } });
+  const res = await publicFetch(url, UA);
   const html = await res.text();
   return { ok: res.ok, status: res.status, html };
 }
@@ -60,7 +61,7 @@ export async function discoverCategoryPages(
     // out-count narrow ones ("Behring Applied Technology") when we pick below
     const probe = Math.min(500, Math.max(limit * 3, 200));
     const api = `${origin}/api.php?action=query&format=json&list=categorymembers&cmtitle=Category:${encodeURIComponent(catName)}&cmlimit=${probe}&cmtype=page`;
-    const r = await fetch(api, { headers: { 'User-Agent': UA } });
+    const r = await publicFetch(api, UA);
     if (!r.ok) return [];
     const d: any = await r.json();
     return (d?.query?.categorymembers || [])

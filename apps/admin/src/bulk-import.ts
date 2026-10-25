@@ -1,3 +1,4 @@
+import { publicFetch } from './public-fetch.js';
 // bulk-import.ts — the connector's one-time --force-overwrite bulk import.
 //
 // This is a SEPARATE, explicit-only entry point. It does not change the
@@ -112,7 +113,7 @@ async function ensureTemplate(category: string): Promise<ScrapeTemplate> {
 
 async function categoryMembers(categoryName: string, limit: number): Promise<string[]> {
   const api = `https://${DOMAIN}/api.php?action=query&format=json&list=categorymembers&cmtitle=${encodeURIComponent(`Category:${categoryName}`)}&cmlimit=${Math.min(500, limit)}&cmtype=page`;
-  const res = await fetch(api, { headers: { 'User-Agent': process.env.SCRAPER_USER_AGENT || 'USSALMC-Bot/0.1 (+reference; respect-robots)' } });
+  const res = await publicFetch(api, process.env.SCRAPER_USER_AGENT || 'USSALMC-Bot/0.1 (+reference; respect-robots)');
   if (!res.ok) return [];
   const d: any = await res.json();
   return (d?.query?.categorymembers || [])

@@ -139,3 +139,5 @@ with the decision and why.)*
   `wordpress-cli` image: `wordpress:cli-php8.3` -> `wordpress:cli-2.12-php8.5`
   (matching WP-CLI 2.12). Verified both tags exist on Docker Hub before
   switching.
+
+- 2026-10-25: Scraper imports are external-only; public-fetch validates and pins public DNS answers for every page, robots, category and redirect request. Internal API preview calls remain separate.
