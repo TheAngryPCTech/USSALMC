@@ -682,7 +682,7 @@ the page links to the existing server-rendered directory.
 The globe surface, world sizes and system layout are explicitly illustrative,
 not navigationally accurate. Only valid recorded degree coordinates on a known
 body become pins. Unassigned or unpositioned records remain searchable. The
-known Stanton planet/moon reference hierarchy is documented in docs/api.md;
+Stanton and Pyro planet/moon reference hierarchies is documented in docs/api.md;
 no Cornerstone code, coordinates, textures or location dataset is copied.
 
 Checks (from repository root, with API/admin dev dependencies installed):
@@ -706,8 +706,9 @@ production records are changed by preview or validation.
 
 This branch implements the WordPress Stellar Atlas shell/homepage and the
 Planetary Atlas viewer/API. It is not a complete, surveyed universe database.
-The globe can display any classified KB body; only Stanton has the authored
-planet/moon reference hierarchy. Other systems depend on recorded relationships.
+The globe can display any classified KB body; Stanton and Pyro have complete authored planet/moon reference hierarchies
+matching the supplied survey catalogue (28 bodies across the two systems).
+Other systems depend on recorded relationships.
 Unknown coordinates/services remain unknown, and surface terrain and system
 layouts remain illustrative. Accurate surface maps, game-derived textures,
 complete system catalogues and ephemerides are not included.

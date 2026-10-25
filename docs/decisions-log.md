@@ -285,6 +285,13 @@
   progressive enhancement over the KB. Keep the original USSA logo and the
   system → planet → moon → location chain visible. Bezdek is on Arial, a moon
   of Hurston within Stanton; the mockup's Hurston-surface placement is not used.
-  Known Stanton names/parentage may use a labeled reference hierarchy. No
+  Known Stanton and Pyro names/parentage use labeled reference catalogues. No
   location coordinates, distances, map textures, or service flags are invented.
   Recorded positions only become pins when their parent body is identifiable.
+
+- 2026-10-25: Correct the map's incomplete reference coverage: include both
+  systems from the user's survey reference, not just Stanton. Stanton has four
+  planets and twelve moons; Pyro's listed hierarchy has Pyro I, Monox, Bloom,
+  Pyro V and Terminus, with Ignis, Vatra, Adir, Fairo, Fuego, Vuur and Pyro IV
+  under Pyro V. Reference-only bodies render even before a KB article exists;
+  missing positions/images/services remain empty. No new DB rows are seeded.

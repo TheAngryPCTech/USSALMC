@@ -125,6 +125,23 @@ try {
       `overflow at ${width}`,
     );
   }
+  await page.locator("#planetary-system").selectOption({ label: "Pyro" });
+  assert.equal(await page.locator("#planetary-tree .body-button").count(), 12);
+  assert.equal(
+    await page.locator("#planetary-system-view").getAttribute("aria-pressed"),
+    "true",
+  );
+  await page
+    .locator("#planetary-tree .body-button")
+    .filter({ hasText: /^Pyro IV/ })
+    .click();
+  assert.equal(await page.locator("#planetary-world").innerText(), "Pyro IV");
+  assert.match(
+    await page.locator("#planetary-path").innerText(),
+    /Pyro \/ Pyro V/,
+  );
+  await page.locator("#planetary-system").selectOption({ label: "Stanton" });
+  assert.equal(await page.locator("#planetary-tree .body-button").count(), 16);
   assert.deepEqual(errors, []);
   await page.close();
   const fallback = await browser.newPage();

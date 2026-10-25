@@ -101,7 +101,9 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
     text(
       q("description"),
       node.summary ||
-        "No description recorded. Open the knowledge-base entry for its available details.",
+        (node.reference_only
+          ? "Reference catalogue entry. This world has no matching knowledge-base article yet."
+          : "No description recorded. Open the knowledge-base entry for its available details."),
     );
     const photo = q("photo"),
       photoUrl = safeLink(node.image?.url);
@@ -250,11 +252,12 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
         element(
           "small",
           "",
-          node.kind === "moon"
+          (node.kind === "moon"
             ? "Moon"
             : node.kind === "planet"
               ? "Planet"
-              : "World",
+              : "World") +
+            (node.reference_only ? " · reference catalogue" : ""),
         ),
       );
       button.onclick = () => {
@@ -352,13 +355,18 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
     q("system").append(option);
   }
   q("system").value = body?.system_id || "unassigned";
-  q("system").onchange = () =>
-    chooseBody(
-      bodies.find((n) => (n.system_id || "unassigned") === q("system").value) ||
-        null,
-      null,
-      q("system").value,
+  q("system").onchange = () => {
+    const systemId = q("system").value;
+    const candidates = bodies.filter(
+      (n) => (n.system_id || "unassigned") === systemId,
     );
+    mode = "system";
+    chooseBody(
+      candidates.find((n) => n.kind === "planet") || candidates[0] || null,
+      null,
+      systemId,
+    );
+  };
   q("all").checked = !body;
   q("all").onchange = () => {
     limit = 50;

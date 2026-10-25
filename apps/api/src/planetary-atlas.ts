@@ -31,17 +31,54 @@ export interface AtlasPlace {
     url: string | null;
     last_verified: string | null;
   };
-  hierarchy_source: "knowledge_base" | "stanton_reference" | null;
+  hierarchy_source:
+    "knowledge_base" | "stanton_reference" | "pyro_reference" | null;
   reference_only?: boolean;
 }
-// Factual Stanton body hierarchy, also displayed by Cornerstone's public survey
-// index (https://survey.cstone.space/Systems/Stanton/). It supplies names and
-// parentage only: no coordinates, radii, terrain or orbital geometry are copied.
-const STANTON = [
-  { name: "Hurston", moons: ["Arial", "Aberdeen", "Magda", "Ita"] },
-  { name: "Crusader", moons: ["Cellin", "Daymar", "Yela"] },
-  { name: "ArcCorp", moons: ["Lyria", "Wala"] },
-  { name: "microTech", moons: ["Calliope", "Clio", "Euterpe"] },
+// Complete factual body rosters displayed by the two public survey indexes.
+// Names/parentage only: no coordinates, radii, terrain or orbital data copied.
+const REFERENCE_SYSTEMS = [
+  {
+    name: "Stanton",
+    key: "stanton",
+    planets: [
+      {
+        name: "Hurston",
+        aliases: [],
+        moons: ["Arial", "Aberdeen", "Magda", "Ita"],
+      },
+      { name: "Crusader", aliases: [], moons: ["Cellin", "Daymar", "Yela"] },
+      {
+        name: "ArcCorp",
+        aliases: ["ArcCorp (planet)"],
+        moons: ["Lyria", "Wala"],
+      },
+      {
+        name: "microTech",
+        aliases: ["MicroTech (planet)"],
+        moons: ["Calliope", "Clio", "Euterpe"],
+      },
+    ],
+  },
+  {
+    name: "Pyro",
+    key: "pyro",
+    planets: [
+      { name: "Pyro I", aliases: [], moons: [] },
+      { name: "Monox", aliases: ["Pyro II", "Monox (planet)"], moons: [] },
+      { name: "Bloom", aliases: ["Pyro III", "Bloom (planet)"], moons: [] },
+      {
+        name: "Pyro V",
+        aliases: [],
+        moons: ["Ignis", "Vatra", "Adir", "Fairo", "Fuego", "Vuur", "Pyro IV"],
+      },
+      {
+        name: "Terminus",
+        aliases: ["Pyro VI", "Terminus (planet)"],
+        moons: [],
+      },
+    ],
+  },
 ];
 function number(value: unknown): number | null {
   if (
@@ -83,12 +120,17 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
     const name = r.name.trim().toLowerCase();
     byName.set(name, [...(byName.get(name) ?? []), r]);
   }
+  const referenceNames = new Map<string, string>();
   // An ambiguous name is never resolved to the first match.
   function resolve(v: unknown): string | null {
     if (typeof v !== "string" || !v.trim()) return null;
     if (byId.has(v)) return v;
     const named = byName.get(v.trim().toLowerCase());
-    return named?.length === 1 ? named[0].id : null;
+    return named?.length === 1
+      ? named[0].id
+      : named?.length
+        ? null
+        : (referenceNames.get(v.trim().toLowerCase()) ?? null);
   }
   const nodes: AtlasPlace[] = rows.map((r) => {
     const a =
@@ -192,61 +234,101 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
       hierarchy_source: parent || system ? "knowledge_base" : null,
     };
   });
-  const actualStanton = nodes.find(
-    (n) => n.kind === "system" && n.name.toLowerCase() === "stanton",
-  );
-  let referenceId = actualStanton?.id ?? "atlas_reference_stanton";
-  if (!actualStanton) while (byId.has(referenceId)) referenceId += "_ref";
-  let referenceUsed = false;
-  for (const planet of STANTON) {
-    const id =
-      resolve(planet.name) ??
-      (planet.name === "ArcCorp" ? resolve("ArcCorp (planet)") : null);
-    if (id) {
-      const p = nodes.find((n) => n.id === id)!;
-      p.kind = "planet";
-      if (!p.parent_id) {
-        p.parent_id = referenceId;
-        p.hierarchy_source = "stanton_reference";
-        referenceUsed = true;
+  // Reference-only nodes fill missing catalogue entries without pretending
+  // that a KB article or a survey position exists for them.
+  for (const catalogue of REFERENCE_SYSTEMS) {
+    const sourceUrl = `https://survey.cstone.space/Systems/${catalogue.name}/`;
+    const hierarchy = `${catalogue.key}_reference` as
+      "stanton_reference" | "pyro_reference";
+    function ensure(
+      name: string,
+      kind: AtlasKind,
+      parentId: string | null,
+      systemId: string | null,
+      aliases: string[] = [],
+    ) {
+      const resolved = [name, ...aliases].map(resolve).find(Boolean);
+      let node = resolved ? nodes.find((n) => n.id === resolved) : undefined;
+      if (!node) {
+        let id = `atlas_reference_${catalogue.key}_${kind === "system" ? "root" : name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+        // Preserve the existing public reference ID for backwards-compatible links.
+        if (kind === "system") id = `atlas_reference_${catalogue.key}`;
+        while (nodes.some((n) => n.id === id)) id += "_ref";
+        node = {
+          id,
+          name,
+          kind,
+          parent_id: parentId,
+          body_id: null,
+          system_id: systemId,
+          coordinates: null,
+          image: null,
+          summary: null,
+          services: [],
+          confidence: null,
+          game_version: null,
+          source: {
+            origin: `${catalogue.name} reference body catalogue`,
+            url: sourceUrl,
+            last_verified: null,
+          },
+          hierarchy_source: hierarchy,
+          reference_only: true,
+        };
+        nodes.push(node);
+      } else {
+        node.kind = kind;
+        if (!node.parent_id && parentId) {
+          node.parent_id = parentId;
+          node.hierarchy_source = hierarchy;
+        }
+        node.system_id ??= systemId;
       }
-      p.system_id ??= referenceId;
+      for (const label of [name, ...aliases])
+        referenceNames.set(label.toLowerCase(), node.id);
+      return node;
     }
-    for (const moon of planet.moons) {
-      const mid = resolve(moon);
-      if (!mid) continue;
-      const n = nodes.find((n) => n.id === mid)!;
-      n.kind = "moon";
-      if (!n.parent_id && id) {
-        n.parent_id = id;
-        n.hierarchy_source = "stanton_reference";
-      }
-      n.system_id ??= referenceId;
-      referenceUsed = true;
+    const system = ensure(catalogue.name, "system", null, null);
+    for (const planet of catalogue.planets) {
+      const p = ensure(
+        planet.name,
+        "planet",
+        system.id,
+        system.id,
+        planet.aliases,
+      );
+      for (const name of planet.moons) ensure(name, "moon", p.id, system.id);
     }
   }
-  if (referenceUsed && !actualStanton)
-    nodes.unshift({
-      id: referenceId,
-      name: "Stanton",
-      kind: "system",
-      parent_id: null,
-      body_id: null,
-      system_id: null,
-      coordinates: null,
-      image: null,
-      summary: null,
-      services: [],
-      confidence: null,
-      game_version: null,
-      source: {
-        origin: "Stanton reference hierarchy",
-        url: "https://survey.cstone.space/Systems/Stanton/",
-        last_verified: null,
-      },
-      hierarchy_source: "stanton_reference",
-      reference_only: true,
-    });
+  // Resolve explicit references again now that missing named worlds exist.
+  for (const node of nodes) {
+    const original = byId.get(node.id);
+    if (!original) continue;
+    const a = original.attributes ?? {};
+    if (!node.parent_id) {
+      let parent = resolve(
+        a.parent_entity_id ??
+          a.parent_id ??
+          a.body_entity_id ??
+          a.body_id ??
+          a.planet_entity_id ??
+          a.moon ??
+          a.planet ??
+          a.celestial_body,
+      );
+      if (!parent && typeof a.location === "string") {
+        const match = a.location.match(/^(.+?)\s+[—–]\s+On\s+(.+)$/i);
+        if (match) parent = resolve(match[2]);
+      }
+      if (parent && parent !== node.id) {
+        node.parent_id = parent;
+        node.hierarchy_source = "knowledge_base";
+      }
+    }
+    node.system_id ??= resolve(
+      a.star_system_id ?? a.star_system ?? a.system_id,
+    );
+  }
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   for (const n of nodes) {
     let current: AtlasPlace | undefined = n;
@@ -281,5 +363,8 @@ export async function getPlanetaryAtlas() {
     geometry: "schematic",
     terrain: "illustrative",
     reference_hierarchy_url: "https://survey.cstone.space/Systems/Stanton/",
+    reference_hierarchy_urls: REFERENCE_SYSTEMS.map(
+      (s) => `https://survey.cstone.space/Systems/${s.name}/`,
+    ),
   };
 }

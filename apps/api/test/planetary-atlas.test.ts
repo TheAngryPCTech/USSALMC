@@ -106,3 +106,54 @@ test("uses explicit hierarchy/services; hides private provenance; validates imag
   assert.equal(n.source.origin, null);
   assert.equal(n.image?.url, "https://example.com/primary.jpg");
 });
+test("both complete reference systems exist even when the KB has no body articles", () => {
+  const nodes = projectPlanetaryAtlas([]);
+  assert.equal(nodes.filter((n) => n.kind === "system").length, 2);
+  assert.equal(nodes.filter((n) => n.kind === "planet").length, 9);
+  assert.equal(nodes.filter((n) => n.kind === "moon").length, 19);
+  const expected = {
+    Hurston: ["Arial", "Aberdeen", "Magda", "Ita"],
+    Crusader: ["Cellin", "Daymar", "Yela"],
+    ArcCorp: ["Lyria", "Wala"],
+    microTech: ["Calliope", "Clio", "Euterpe"],
+    "Pyro V": ["Ignis", "Vatra", "Adir", "Fairo", "Fuego", "Vuur", "Pyro IV"],
+  };
+  for (const [name, moons] of Object.entries(expected)) {
+    const body = nodes.find((n) => n.name === name)!;
+    assert.ok(body);
+    assert.deepEqual(
+      nodes
+        .filter((n) => n.parent_id === body.id)
+        .map((n) => n.name)
+        .sort(),
+      [...moons].sort(),
+    );
+  }
+  for (const node of nodes) {
+    assert.equal(node.reference_only, true);
+    assert.equal(node.coordinates, null);
+  }
+});
+test("Pyro aliases reuse KB bodies, and locations can attach to reference-only moons", () => {
+  const nodes = projectPlanetaryAtlas([
+    row("monox_kb", "Pyro II"),
+    row("camp", "Example recorded camp", {
+      location: "Pyro system — On Fuego",
+    }),
+  ]);
+  assert.equal(nodes.filter((n) => n.id === "monox_kb").length, 1);
+  assert.equal(
+    nodes.find((n) => n.name === "Monox"),
+    undefined,
+  );
+  assert.equal(
+    nodes.find((n) => n.id === "monox_kb")?.system_id,
+    "atlas_reference_pyro",
+  );
+  const fuego = nodes.find((n) => n.name === "Fuego")!;
+  assert.equal(nodes.find((n) => n.id === "camp")?.body_id, fuego.id);
+  assert.equal(
+    nodes.find((n) => n.id === "camp")?.system_id,
+    "atlas_reference_pyro",
+  );
+});

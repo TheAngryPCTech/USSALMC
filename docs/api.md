@@ -613,14 +613,22 @@ HTTP(S) entity images, primary first. Hidden source origin/URL stay hidden.
 Hierarchy is resolved from explicit parent/body/system IDs, unambiguous exact
 names, and `located_in|part_of|orbits` relations. The wiki importer's explicit
 `<system> — On <body>` Location field is supported. Parent cycles terminate and
-ambiguous names stay unresolved. A small factual Stanton reference catalogue
-provides known planet/moon parentage when absent, labeled
-`hierarchy_source: stanton_reference`; its named worlds must already exist in
-the KB. A reference-only Stanton root can be supplied without pretending it is
-a stored entity. For example: Stanton → Hurston → Arial → HDMS-Bezdek. The
-reference supplies no surface coordinates, radii, distances, or terrain.
+ambiguous names stay unresolved. Complete factual Stanton and Pyro reference catalogues
+provide planet/moon parentage when absent, labeled
+`hierarchy_source: stanton_reference|pyro_reference`. Missing body articles are
+represented by explicitly `reference_only` catalogue nodes; no fictitious KB
+article, surface position, or image is created. Existing KB bodies are reused,
+including alternate names (Monox/Pyro II, Bloom/Pyro III, Terminus/Pyro VI). For example: Stanton → Hurston → Arial → HDMS-Bezdek. The
+references supply no surface coordinates, radii, distances, or terrain.
 
 Service filters include only explicitly recorded positive flags in `services`
 (an array or object), direct attributes, or `has_<service>` attributes:
 `trading|mining|refinery|refueling|repair|restock|medical|habitation`. Missing
 service data means unknown, not false or present.
+
+The two complete reference rosters contain 28 planetary bodies: Stanton's
+4 planets + 12 moons and Pyro's 5 listed planets + 7 moons. Pyro IV is under
+Pyro V, matching the supplied survey index. `reference_hierarchy_urls` lists
+both survey index URLs; the original singular `reference_hierarchy_url` is
+retained for compatibility. Missing KB entries have `reference_only: true` and
+no "Open KB entry" link, coordinates, imagery, or invented descriptions.
