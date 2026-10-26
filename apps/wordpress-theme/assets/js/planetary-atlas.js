@@ -26,7 +26,10 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
     systemBodies = nodes.filter((n) => isBody(n) || n.lagrange_point),
     // Lore-only starmap entries (not yet flyable/landable in the live game)
     // are kept in the KB/search but never offered as an explorable system.
-    systems = nodes.filter((n) => n.kind === "system" && n.implemented !== false);
+    systems = nodes.filter((n) => n.kind === "system" && n.implemented !== false),
+    // Every system, implemented or lore-only — for the far-zoom galaxy
+    // view only. The dropdown above stays implemented-only on purpose.
+    allSystems = nodes.filter((n) => n.kind === "system" && n.galactic_position);
   let body = byId.get(data.body),
     selected = byId.get(data.place),
     mode = "globe",
@@ -339,6 +342,7 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
         (n) => (n.system_id || "unassigned") === q("system").value,
       ),
     );
+    engine?.setGalaxy(allSystems, q("system").value);
     engine?.setMode(mode);
     markers();
     remember();
@@ -359,10 +363,7 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
       engine?.focus(node.coordinates);
     }
   }
-  const systemOptions = [
-    ...systems.map((n) => ({ id: n.id, name: n.name })),
-    { id: "unassigned", name: "Unassigned system" },
-  ];
+  const systemOptions = systems.map((n) => ({ id: n.id, name: n.name }));
   for (const item of systemOptions) {
     const option = element("option", "", item.name);
     option.value = item.id;
@@ -442,6 +443,24 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
           mode = "globe";
           chooseBody(node);
         },
+        // A galaxy-view point: an implemented system switches the explorer
+        // to it (same as picking it from the dropdown); a lore-only one has
+        // no body roster to enter, so it just opens its info panel.
+        chooseSystem: (node) => {
+          if (node.implemented === false) {
+            select(node);
+            return;
+          }
+          const candidates = bodies.filter(
+            (n) => (n.system_id || "unassigned") === node.id,
+          );
+          mode = "system";
+          chooseBody(
+            candidates.find((n) => n.kind === "planet") || candidates[0] || null,
+            null,
+            node.id,
+          );
+        },
         contextLost: () => {
           rendererError =
             "3D rendering was interrupted. Reload the page to restore it; location entries remain available in the list.";
@@ -454,6 +473,7 @@ for (const root of document.querySelectorAll(".planetary-atlas")) {
           (n) => (n.system_id || "unassigned") === q("system").value,
         ),
       );
+      engine.setGalaxy(allSystems, q("system").value);
       engine.setMode(mode);
       engine.setLayers({
         pins: q("pins").checked,

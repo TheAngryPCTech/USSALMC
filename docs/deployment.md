@@ -679,11 +679,26 @@ They load lazily on an Atlas page, without a runtime CDN or import map. The
 location browser/details work when WebGL is unavailable. With JavaScript off,
 the page links to the existing server-rendered directory.
 
-The globe surface, world sizes and system layout are explicitly illustrative,
-not navigationally accurate. Only valid recorded degree coordinates on a known
-body become pins. Unassigned or unpositioned records remain searchable. The
-Stanton and Pyro planet/moon reference hierarchies is documented in docs/api.md;
-no Cornerstone code, coordinates, textures or location dataset is copied.
+The globe surface (terrain) is explicitly illustrative, not navigationally
+accurate — no third-party textures are used (see Decisions Log, 2026-10-25).
+System-view intra-system layout uses REAL relative position/scale for
+Stanton (one-time NAS import) and Pyro (live sync, below) when present on a
+body, falling back to the earlier illustrative golden-angle schematic
+per-body where it isn't (e.g. Nyx). The far-zoom galaxy view uses every
+system's real galactic position. Only valid recorded degree coordinates on a
+known body become surface pins. Unassigned or unpositioned records remain
+searchable. The Stanton and Pyro planet/moon reference hierarchies is
+documented in docs/api.md; no Cornerstone code, textures or location
+dataset is copied.
+
+**Background job:** the `api` container runs a 30-minute `setInterval` sync
+(`apps/api/src/pyro-system-scale-sync.ts`, started ~10s after boot, logged to
+`scrape_log` as `pyro_system_scale_sync_ok|error`) pulling Pyro's real
+body position/radius from a user-provided public read-only Google Sheet's
+CSV export. No restart or secret is needed — it's a public URL baked into
+the module. Stanton has no equivalent live source; its data is a one-time
+import (`scripts/import-stanton-system-scale.ts`), re-run manually if the
+source NAS export is ever updated.
 
 Checks (from repository root, with API/admin dev dependencies installed):
 

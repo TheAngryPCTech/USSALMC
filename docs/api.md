@@ -607,14 +607,34 @@ Each node has `id`, `name`, `kind` (`system|planet|moon|body|location`), nullabl
 `confidence`, `game_version`, `source`, `hierarchy_source` and `services`.
 A `kind: "system"` node also carries `implemented` — `false` only for a
 lore-only starmap entry that is not yet flyable/landable in the live game
-(e.g. scraped from StarCitizen-API's full system list); `true` for Stanton
-and Pyro. The WordPress theme's system picker filters these out so only
+(e.g. scraped from StarCitizen-API's full system list); `true` for Stanton,
+Pyro, and Nyx. The WordPress theme's system picker filters these out so only
 real, explorable systems appear in the 3D Planetary Atlas; lore-only systems
 remain ordinary KB entries, searchable outside the explorer.
 Coordinates are `{ latitude, longitude }` in degrees, north/east positive; empty,
 non-numeric, out-of-range and explicitly non-degree values are rejected. Generic
 `position: {x,y,z}` fields are not surface coordinates. Images use existing
 HTTP(S) entity images, primary first. Hidden source origin/URL stay hidden.
+
+Every node also carries `orbit_index` (schematic distance-from-parent order,
+0 = closest; null when unknown — never derived from a third-party survey)
+and `lagrange_point` (`"L1".."L5"` parsed from the node's own official name,
+e.g. `"CRU-L1 ..."`; null otherwise).
+
+A `kind: "system"` node additionally carries `galactic_position: {x,y,z} |
+null` — the system's real galactic position (from the original
+StarCitizen-API starmap scrape's `position` field), present for all ~96
+systems, implemented or lore-only. Used only by the 3D Planetary Atlas's
+far-zoom galaxy view; never used for intra-system layout.
+
+A `kind: "planet"`/`"moon"` node additionally carries
+`real_position_km: {x,y} | null` and `real_radius_km: number | null` — real
+intra-system position/radius, present only where it has actually been
+synced: Pyro (all 12 bodies, live 30-minute sync from a user-provided public
+sheet) and Stanton (all 16 bodies, one-time import from a user-provided
+static export; no radius data in that export). Null everywhere else — the
+3D explorer falls back to its schematic layout per-body, never blending
+real and schematic data within one body.
 
 Hierarchy is resolved from explicit parent/body/system IDs, unambiguous exact
 names, and `located_in|part_of|orbits` relations. The wiki importer's explicit

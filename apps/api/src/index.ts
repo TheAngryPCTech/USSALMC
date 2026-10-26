@@ -6,6 +6,7 @@ import { config } from './config.js';
 import { registerAuth } from './auth.js';
 import { registerRoutes } from './routes.js';
 import { pool } from './db.js';
+import { syncPyroSystemScale } from './pyro-system-scale-sync.js';
 
 // trustProxy: when running behind a TLS reverse proxy (nginx), honor
 // X-Forwarded-For/Proto so req.ip is the real client, not the proxy. Off by
@@ -59,3 +60,20 @@ registerRoutes(app);
 app.listen({ port: config.api.port, host: config.api.host })
   .then((addr) => app.log.info(`USSALMC API listening on ${addr}`))
   .catch((err) => { app.log.error(err); process.exit(1); });
+
+// Pyro system-scale sync (real intra-system body position/radius from a
+// user-provided public read-only Google Sheet) — every 30 minutes, plus
+// once shortly after startup. No equivalent exists for Stanton (no live
+// source; see scripts/import-stanton-system-scale.ts for its one-time
+// static import). See CLAUDE.md Decisions Log, 2026-10-25.
+const PYRO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+setTimeout(() => {
+  syncPyroSystemScale()
+    .then((r) => app.log.info({ result: r }, 'pyro system-scale sync'))
+    .catch((e) => app.log.error(e, 'pyro system-scale sync failed'));
+}, 10_000);
+setInterval(() => {
+  syncPyroSystemScale()
+    .then((r) => app.log.info({ result: r }, 'pyro system-scale sync'))
+    .catch((e) => app.log.error(e, 'pyro system-scale sync failed'));
+}, PYRO_SYNC_INTERVAL_MS);

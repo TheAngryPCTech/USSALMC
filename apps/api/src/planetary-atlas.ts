@@ -48,6 +48,31 @@ export interface AtlasPlace {
   // official in-universe name (e.g. "CRU-L1 Ambitious Dream Station"), never
   // guessed from prose. Null for everything else.
   lagrange_point: string | null;
+  // Real galactic position for a "system"-kind node (StarCitizen-API's
+  // scraped starmap `position`, present for all ~96 systems, implemented
+  // or lore-only) — used only for the far-zoom galaxy view. Never used to
+  // derive intra-system layout.
+  galactic_position: { x: number; y: number; z: number } | null;
+  // Real intra-system position/radius for a planet/moon, in kilometres,
+  // from `attributes.real_system_position`/`real_body_radius_km` — set
+  // only by the explicit sync scripts in scripts/sync-*.ts (a static
+  // one-time NAS import for Stanton, a live 30-min sheet sync for Pyro;
+  // see CLAUDE.md Decisions Log, 2026-10-25). Null wherever no real data
+  // has been synced — the schematic orbit_index layout is the fallback,
+  // never silently blended with this.
+  real_position_km: { x: number; y: number } | null;
+  real_radius_km: number | null;
+  // Real orbital period in SED (Standard Earth Days, from the body's own
+  // starcitizen.tools infobox "Orbital period" field — a lore fact, not a
+  // survey measurement) and the ISO timestamp its real_position_km was
+  // recorded at. Together these drive genuine real-time orbital motion in
+  // the 3D explorer's system view — both null wherever either is missing
+  // (currently: Pyro's planets and every moon have no documented orbital
+  // period, so neither field is populated for them; the explorer leaves
+  // those bodies static rather than fabricate a rate). See CLAUDE.md
+  // Decisions Log, 2026-10-25.
+  orbital_period_sed: number | null;
+  real_position_recorded_at: string | null;
 }
 // Complete factual body rosters displayed by the two public survey indexes.
 // Names/parentage only: no coordinates, radii, terrain or orbital data copied.
@@ -92,6 +117,16 @@ const REFERENCE_SYSTEMS = [
         moons: [],
       },
     ],
+  },
+  {
+    // Nyx went live in Alpha 4.4 (2025-11-19): jump points to Pyro/Stanton,
+    // Delamar (incl. Levski) flyable/landable. Its three planets are not —
+    // CIG has only said they're coming "in 2026 via Genesis" — so only
+    // Delamar is listed here; adding placeholder Nyx I/II/III entries would
+    // misrepresent them as currently flyable. Revisit when CIG ships them.
+    name: "Nyx",
+    key: "nyx",
+    planets: [{ name: "Delamar", aliases: [], moons: [] }],
   },
 ];
 // Only these systems are actually flyable/landable in the live game today.
@@ -239,6 +274,21 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
       for (const key of a.services)
         if (allowed.includes(key)) services.add(key);
     const src = r.source ?? {};
+    const gx = number(a.position?.x),
+      gy = number(a.position?.y),
+      gz = number(a.position?.z);
+    const galactic_position =
+      kind === "system" && gx !== null && gy !== null && gz !== null
+        ? { x: gx, y: gy, z: gz }
+        : null;
+    const rpx = number(a.real_system_position?.x),
+      rpy = number(a.real_system_position?.y);
+    const real_position_km =
+      rpx !== null && rpy !== null ? { x: rpx, y: rpy } : null;
+    const real_radius_km = number(a.real_body_radius_km);
+    const orbital_period_sed = number(a.orbital_period_sed);
+    const real_position_recorded_at =
+      typeof a.real_position_recorded_at === "string" ? a.real_position_recorded_at : null;
     return {
       id: r.id,
       name: r.name,
@@ -267,6 +317,11 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
         const m = r.name.match(/-L([1-5])\b/i);
         return m ? "L" + m[1] : null;
       })(),
+      galactic_position,
+      real_position_km,
+      real_radius_km,
+      orbital_period_sed,
+      real_position_recorded_at,
     };
   });
   // Reference-only nodes fill missing catalogue entries without pretending
@@ -313,6 +368,11 @@ export function projectPlanetaryAtlas(rows: AtlasRecord[]) {
           implemented: kind === "system" ? true : undefined,
           orbit_index: orbitIndex,
           lagrange_point: null,
+          galactic_position: null,
+          real_position_km: null,
+          real_radius_km: null,
+          orbital_period_sed: null,
+          real_position_recorded_at: null,
         };
         nodes.push(node);
       } else {

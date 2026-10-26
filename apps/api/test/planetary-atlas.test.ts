@@ -130,10 +130,10 @@ test("uses explicit hierarchy/services; hides private provenance; validates imag
   assert.equal(n.source.origin, null);
   assert.equal(n.image?.url, "https://example.com/primary.jpg");
 });
-test("both complete reference systems exist even when the KB has no body articles", () => {
+test("all complete reference systems exist even when the KB has no body articles", () => {
   const nodes = projectPlanetaryAtlas([]);
-  assert.equal(nodes.filter((n) => n.kind === "system").length, 2);
-  assert.equal(nodes.filter((n) => n.kind === "planet").length, 9);
+  assert.equal(nodes.filter((n) => n.kind === "system").length, 3);
+  assert.equal(nodes.filter((n) => n.kind === "planet").length, 10);
   assert.equal(nodes.filter((n) => n.kind === "moon").length, 19);
   const expected = {
     Hurston: ["Arial", "Aberdeen", "Magda", "Ita"],
@@ -141,6 +141,7 @@ test("both complete reference systems exist even when the KB has no body article
     ArcCorp: ["Lyria", "Wala"],
     microTech: ["Calliope", "Clio", "Euterpe"],
     "Pyro V": ["Ignis", "Vatra", "Adir", "Fairo", "Fuego", "Vuur", "Pyro IV"],
+    Delamar: [],
   };
   for (const [name, moons] of Object.entries(expected)) {
     const body = nodes.find((n) => n.name === name)!;
@@ -198,12 +199,18 @@ test("reference planets/moons carry a distance-order orbit_index for schematic l
   assert.equal(pyroI.orbit_index, 0);
   assert.equal(terminus.orbit_index, 4);
 });
-test("only Stanton/Pyro are implemented; other star-system KB entries are not", () => {
+test("only Stanton/Pyro/Nyx are implemented; other star-system KB entries are not", () => {
+  // Terra is a long-announced, not-yet-live lore system — a stable example
+  // of a star-system KB row that should stay unimplemented, unlike Nyx
+  // (live since Alpha 4.4, 2025-11-19: jump points to Pyro/Stanton, Delamar
+  // and Levski flyable/landable) which is now a REFERENCE_SYSTEMS entry.
   const nodes = projectPlanetaryAtlas([
+    row("terra", "Terra", { category: "star_system" }),
     row("nyx", "Nyx", { category: "star_system" }),
   ]);
-  assert.equal(nodes.find((n) => n.id === "nyx")?.kind, "system");
-  assert.equal(nodes.find((n) => n.id === "nyx")?.implemented, false);
+  assert.equal(nodes.find((n) => n.id === "terra")?.kind, "system");
+  assert.equal(nodes.find((n) => n.id === "terra")?.implemented, false);
+  assert.equal(nodes.find((n) => n.id === "nyx")?.implemented, true);
   assert.equal(
     nodes.find((n) => n.id === "atlas_reference_stanton")?.implemented,
     true,
@@ -212,4 +219,14 @@ test("only Stanton/Pyro are implemented; other star-system KB entries are not", 
     nodes.find((n) => n.id === "atlas_reference_pyro")?.implemented,
     true,
   );
+});
+test("Nyx reference catalogue reuses the existing Delamar KB entry and parents it", () => {
+  const nodes = projectPlanetaryAtlas([
+    row("location_nyx", "Nyx", { category: "star_system" }),
+    row("location_delamar", "Delamar", {}),
+  ]);
+  const delamar = nodes.find((n) => n.id === "location_delamar")!;
+  assert.equal(delamar.kind, "planet");
+  assert.equal(delamar.parent_id, "location_nyx");
+  assert.equal(delamar.system_id, "location_nyx");
 });

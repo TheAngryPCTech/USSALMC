@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'USSALMC_THEME_VERSION', '0.5.6' );
+define( 'USSALMC_THEME_VERSION', '0.6.5' );
 
 require_once get_stylesheet_directory() . '/inc/elementor-kit.php';
 require_once get_stylesheet_directory() . '/inc/atlas.php';

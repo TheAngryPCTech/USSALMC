@@ -36,7 +36,7 @@
 .map-shell {
   display: grid;
   grid-template-columns: 225px minmax(0, 1fr) 275px;
-  min-height: 650px;
+  min-height: 500px;
   border: 1px solid #293d53;
   border-radius: 6px;
   overflow: hidden;
@@ -135,7 +135,9 @@
 .map-view {
   position: relative;
   min-width: 0;
-  min-height: 650px;
+  /* Matches .map-shell's floor — a grid child stretches to the row's full
+     height by default, so this is only the floor for short viewports. */
+  min-height: 500px;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 40%, #101c2a 0%, #070d15 70%);
 }
@@ -247,18 +249,18 @@
   background: transparent;
   color: #c1d9f4;
   white-space: nowrap;
-  font-size: 9px;
+  font-size: 13px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 7px;
-  text-shadow: 0 1px 4px #000;
+  text-shadow: 0 1px 4px #000, 0 1px 4px #000;
 }
 .map-marker:before {
   content: "";
   display: block;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border: 1px solid #a9ceff;
   border-radius: 50%;
   background: #366c9f;
@@ -451,13 +453,28 @@
 }
 .stellar-atlas .content:has(.planetary-atlas) {
   padding: 0 32px 45px;
+  /* Only the map page fills the whole window — every other page keeps the
+     1440px cap set in atlas.css. */
+  max-width: none;
+  margin: 0;
+  width: 100%;
 }
 .planetary-atlas {
   padding: 0 !important;
   max-width: none !important;
 }
 .planetary-atlas .map-shell {
-  height: 780px;
+  /* Fills the remaining viewport height below the site header and the
+     page title block, down to the footer — same "fill the window" intent
+     as the map page's full-width CSS, just the other axis. This replaces
+     a hardcoded 780px that only matched one specific viewport height.
+     380px is the measured combined height of the header/title block/
+     footer/margin on this theme; min-height is the floor for short
+     viewports or if that chrome grows. The side panels already scroll
+     independently (.system-panel/.location-panel overflow-y: auto,
+     below) so a taller/shorter shell never clips their content. */
+  height: calc(100vh - 380px);
+  min-height: 500px;
 }
 .planetary-atlas .system-panel,
 .planetary-atlas .location-panel {

@@ -4,7 +4,7 @@ Theme URI: https://ussa.space
 Author: USSALMC
 Author URI: https://ussa.space
 Description: HUD / corporate-portal visual identity for the USSA Lore Master Core (United Space Securities Association). MobiGlas-style diegetic chrome + automotive/tech brand polish. Elementor-compatible: ships an Elementor Global Colors/Typography Kit matching the design tokens so theme-inheriting plugin widgets pick up the palette automatically. Structural language (clipped hex corners, corner-bracket focus, hex-grid + scanline background, hairline borders) lives in this stylesheet. Visual source of truth: reference/corp-portal.html.
-Version: 0.5.6
+Version: 0.6.5
 Requires at least: 6.0
 Requires PHP: 8.0
 License: MIT

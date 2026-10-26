@@ -206,3 +206,176 @@ with the decision and why.)*
   the template's field-match count is the real safety net) since the URL
   list itself was manually curated against `REFERENCE_SYSTEMS`, not an open
   crawl. All 11 pages scraped successfully with real content.
+- 2026-10-25: User repeatedly pushed (SMB share `VerseGuide-Planetary-Textures`,
+  ~59 raw 8192×4096 surface/normal/specular JPG/PNGs) to apply actual
+  Star Citizen planetary texture images to the 3D explorer, across several
+  framings (claimed self-generated, claimed CIG-granted permission,
+  claimed pointed at a NAS). Verified each claim against the actual file
+  content: the manifest's own `url`/`sourceUrl`/`sha256`/`metadataTag`
+  fields consistently trace back to VerseGuide's Firebase storage bucket
+  with matching hashes, and the images themselves (visually inspected) are
+  detailed, coherent planetary surface data, not placeholders. Declined to
+  apply the files — same RSI Fan Content policy basis as the 2026-10-25
+  entry above; an unverifiable claim of personal permission doesn't change
+  that. Instead extracted dominant-color and brightness/contrast
+  *statistics* from the 9 named Stanton/Pyro reference images (no texture
+  pixels used or retained) and used them to retune `PLANET_LOOK` palettes
+  and add a `traits` system (`ruggedness`/`roughness`/`specular`) to
+  `apps/wordpress-theme/assets/js/planetary-renderer.js`, incl. upgrading
+  the `rocky` archetype from a flat single-color shade to a real two-tone
+  biome blend. Downloaded reference files deleted after statistics were
+  extracted — nothing from them is stored in the repo.
+- 2026-10-25: 3D explorer interaction pass, from user feedback modeled on
+  RSI's own Starmap/UEX UX (full list triaged; this covers the "quick
+  wins" tranche, data-dependent items like trade/atmosphere filters and
+  day/night ephemeris sync deferred). System-view planet/moon/Lagrange
+  meshes were effectively unclickable at their real schematic size — added
+  invisible oversized `hitProxy()` raycast targets (2.4-3x the visible
+  mesh radius) alongside each, so clicking the 3D body now works as
+  reliably as clicking its text label. Tried hover-driven orbit-target
+  follow (`controls.target` lerping toward whatever body is under the
+  pointer) to make aiming easier, but lerping the pivot on every
+  pointermove shifts the whole scene's screen-space position under the
+  cursor each frame — reverted immediately once the user reported it broke
+  hover/felt like the UI was sliding around. Kept the bigger hit targets,
+  which solve the aiming problem without moving the camera. Enabled
+  `controls.enablePan`/`screenSpacePanning` (previously disabled).
+  POI markers on the zoomed globe view were already wired up
+  (`setMarkers`/`rebuildMarkers`) but illegible at 9px — bumped
+  `.map-marker` to 13px with a stronger text-shadow. Added frame-by-frame
+  label-overlap decluttering (`placeLabel` now takes a shared `claimed`
+  screen-position array; a label within 26px of one already placed this
+  frame is hidden rather than overlapping) for both system body labels and
+  globe POI markers.
+- 2026-10-25: Added Nyx to `REFERENCE_SYSTEMS` (`apps/api/src/planetary-atlas.ts`)
+  after verifying it's been live since Alpha 4.4 (2025-11-19) — jump points
+  to Pyro/Stanton, Delamar and Levski flyable/landable — contradicting the
+  earlier "only Stanton/Pyro" call from this same day. Only listed Delamar
+  as a planet; Nyx's three actual planets are reportedly still pending
+  ("2026 via Genesis" per CIG) so adding placeholder entries for them would
+  misrepresent them as flyable. The existing KB already had `location_nyx`
+  (a `star_system`-category row) and `location_delamar` (unparented) —
+  both picked up and correctly parented by the existing generic `ensure()`
+  matching with no entity edits needed, only the catalogue addition.
+  Updated `planetary-atlas.test.ts`'s stale "Nyx is not implemented" and
+  system/planet count assertions accordingly.
+- 2026-10-25: Added real-scale/real-position rendering and a far-zoom
+  "galaxy view" to the 3D explorer, after the user confirmed they wanted
+  the schematic layout replaced with real relative position/scale where
+  real data exists (a deliberate reversal of the earlier same-day "no
+  third-party survey scale" call — a legitimate product decision, made
+  explicitly by the user, not a reflex). Two real data sources, with
+  different honesty profiles:
+  - **Pyro**: a live 30-minute sync (`apps/api/src/pyro-system-scale-sync.ts`,
+    scheduled via `setInterval` in `index.ts`, logged to `scrape_log`) pulls
+    the "Nav Database" tab of a user-provided public read-only Google Sheet
+    ("Murphy's Navigation Tool") via its `gviz/tq?tqx=out:csv&sheet=` export
+    endpoint. Matches by exact name only against Pyro's REFERENCE_SYSTEMS
+    roster (ignores the sheet's ~590 Pyro surface-POI rows, out of scope
+    here). Gives real X/Y + real body radius for all 12 Pyro bodies.
+  - **Stanton**: a ONE-TIME import (`scripts/import-stanton-system-scale.ts`)
+    from the user's static NAS export (`Stanton-3D-System-Coordinates.md`).
+    No live source exists for Stanton — explicitly NOT given parity with
+    Pyro's live sync (polling the NAS over SMB every 30 minutes would mean
+    storing NAS credentials in the api container, declined). Gives real
+    X/Y for all 16 Stanton bodies; no radius data in this export, so
+    Stanton bodies keep their schematic sphere size.
+  `AtlasPlace` gained `galactic_position` (for kind:"system", from the
+  `position` field already present on every one of the ~96 system entities
+  since the original StarCitizen-API scrape — no new data needed) and
+  `real_position_km`/`real_radius_km` (for planet/moon, from the two syncs
+  above, stored as `attributes.real_system_position`/`real_body_radius_km`).
+  `planetary-renderer.js`'s `setSystem()` now uses a body's
+  `real_position_km` (true relative scale, single per-system scale factor)
+  when present, falling back to the existing schematic golden-angle rings
+  per-body when absent (Nyx's Delamar, any lore-only system) — never
+  blended within one body. Lagrange-point angles now derive from the
+  planet's REAL angle around the star when real position data exists,
+  not the arbitrary schematic angle. New `setGalaxy()`/`galaxyGroup`:
+  plots every system (implemented or lore-only) at its real
+  `galactic_position`, recentered on whichever system is currently open,
+  visible only once the camera pulls back past 12 units
+  (`GALAXY_REVEAL_DISTANCE`); `controls.maxDistance` raised 30→55 to allow
+  reaching it. Clicking an implemented galaxy point switches systems
+  (`callbacks.chooseSystem`, mirroring the existing dropdown); a lore-only
+  point only opens its info panel, since it has no body roster to enter —
+  the system-picker dropdown itself stays implemented-only, unchanged.
+  Verified end-to-end live via `/v1/atlas`: Hurston/Vatra carry real
+  positions, Vatra carries a real radius, Nyx carries its galactic
+  position.
+- 2026-10-25: Fixed Pyro I/Monox/Bloom colliding (overlapping hit targets)
+  in the real-scale system view, reported right after the galaxy-view work
+  shipped. Root cause: one linear scale was being applied to both
+  planet-to-star distances (tens of millions of km) and moon-to-planet
+  distances (tens of thousands of km) — a 1000x+ dynamic range no single
+  linear scale can render legibly for both tiers; it crushed Pyro's
+  close-together inner planets into overlapping click targets and would
+  have collapsed Pyro V's moons onto Pyro V entirely. Fixed with two
+  independent scales in `setSystem()`: `VISUAL_MAX_RADIUS` (7→14) for
+  planet-to-star, and a new `MOON_VISUAL_MAX_RADIUS` (1.1) computed
+  per-planet from each moon's real km offset FROM ITS PARENT planet, not
+  the global star-centered scale. Real relative position/order is still
+  preserved within each tier — only how far apart the two tiers render is
+  decoupled, same as any real orbital diagram. `GALAXY_REVEAL_DISTANCE`
+  raised 12→30 to stay clear of the larger system view's own camera
+  distance (reset() can now reach ~25.8 for Pyro). Verified numerically:
+  all 3 previously-colliding pairs now clear the hit-target sum by 1.6-8x.
+- 2026-10-25: Real-time orbital motion in the 3D explorer's system view —
+  user wanted "real time body movement through space, all bodies." Checked
+  data availability before building anything: starcitizen.tools infoboxes
+  publish a real "Orbital period" (SED/Standard Earth Days, a lore fact,
+  not a survey measurement) for PLANETS, but checking two different moons
+  (Daymar, Yela) confirmed moons have no such field at all, and Pyro's
+  planet pages (checked Pyro V directly) have no orbital-period field
+  published yet either — a real, confirmed CIG/lore gap, not a scraping
+  failure. User chose (asked directly rather than assumed): real motion
+  for Stanton's 4 planets only; everything else stays static rather than
+  animate at a fabricated rate.
+  `scripts/scrape-planet-orbital-periods.ts` (reuses the admin scraper's
+  real fetch pipeline) got real periods for all 4 Stanton planets (Hurston
+  588, Crusader 1554, ArcCorp 730, microTech 350 SED); Pyro's 5 came back
+  genuinely not-found. `AtlasPlace` gained `orbital_period_sed` and
+  `real_position_recorded_at` (the real_position_km snapshot's epoch —
+  Stanton's stamped to the NAS export's stated 2026-10-25 retrieval date;
+  Pyro's sync now stamps it live each run, for future-proofing, though no
+  Pyro body currently has a period to pair it with).
+  `planetary-renderer.js`'s `setSystem()`: a root body with both a real
+  position AND a real orbital period gets a true circular-approximation
+  real-time animation (real initial angle + real angular velocity from
+  elapsed wall-clock time since the recorded epoch — eccentricity not
+  modeled). Its moons ride along rigidly (parent's live position + their
+  fixed real offset — no fabricated independent motion); its Lagrange
+  points are recomputed from the planet's live angle each frame (same
+  real verified offset angles as the earlier Lagrange fix). Caveat
+  surfaced to the user: at real orbital timescales (350-1554 Earth days
+  per planet) the motion is real but visually almost imperceptible within
+  a normal viewing session — true to "real time," just not a fast-looking
+  animation; a separate, clearly-labeled time-lapse/accelerated mode would
+  be a different feature if visible motion during a short visit matters.
+- 2026-10-26: Fixed Lagrange markers being invisible in Stanton (confirmed
+  via a Playwright screenshot of the live local page — the real
+  server-side data was always correct, this was a pure rendering
+  regression). Root cause: L1/L2's radial offset (±0.3) and the marker/
+  hit-target size (0.065) were fixed absolute units left over from before
+  VISUAL_MAX_RADIUS was bumped 7->14 for real-scale rendering; at the new
+  scale L1/L2 rendered almost inside the planet's own sphere+hit-target
+  (radius 0.816), and every marker became proportionally tiny. Bumped
+  L1/L2 offset to ±1 (clears the hit target at any real/schematic
+  distance) and the marker/hit size to 0.16, plus a subtle emissive glow
+  for legibility. Also added DOM text labels for Lagrange points in
+  system view (they never had one — only planets did); shortened to just
+  the code ("CRU-L1") instead of the full station name, which badly
+  cluttered the view with up to 5 per planet.
+  Map page: replaced a hardcoded `height: 780px` (matched only one
+  specific viewport) with `calc(100vh - 380px)` plus a 500px floor, same
+  "fill the window" intent as the earlier full-width fix, just the other
+  axis — found via live Playwright measurement of the actual header/
+  title-block/footer chrome height, not guessed.
+  3D explorer: added `controls.zoomToCursor = true` (the vendored
+  OrbitControls 0.180.0 supports it) so scroll-zoom moves toward the
+  cursor instead of always the orbit target. Fixed the far-zoom galaxy
+  view's range: `GALAXY_VISUAL_SCALE` (1.2) combined with
+  `controls.maxDistance` (55) meant the farthest real system from Stanton
+  (~132.9 raw units, measured live from the DB) could never actually be
+  reached — rescaled to 0.65 and raised maxDistance to 95, which
+  comfortably covers the full measured spread of all 96 systems.
